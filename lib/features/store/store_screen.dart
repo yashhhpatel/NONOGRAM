@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
-import '../../core/billing/billing_service.dart';
 
 class StoreScreen extends ConsumerWidget {
   const StoreScreen({super.key});
@@ -36,9 +35,6 @@ class StoreScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _sectionTitle('Remove Ads'),
-          _RemoveAdsCard(owned: profile.removeAds),
-          const SizedBox(height: 20),
           _sectionTitle('Spend Coins'),
           _CoinSpendTile(
             icon: Icons.lightbulb,
@@ -93,72 +89,6 @@ class StoreScreen extends ConsumerWidget {
   void _toast(BuildContext context, String msg) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
-  }
-}
-
-class _RemoveAdsCard extends ConsumerWidget {
-  final bool owned;
-  const _RemoveAdsCard({required this.owned});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppTheme.primary, AppTheme.primaryDark],
-        ),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.block, color: Colors.white, size: 36),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Remove Ads',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18)),
-                Text('Lifetime · removes banners & interstitials',
-                    style: TextStyle(color: Colors.white70, fontSize: 12)),
-              ],
-            ),
-          ),
-          owned
-              ? const Chip(label: Text('Owned'))
-              : FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppTheme.primary,
-                  ),
-                  onPressed: () => _buy(context, ref),
-                  child: const Text('Buy'),
-                ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _buy(BuildContext context, WidgetRef ref) async {
-    final outcome = await ref.read(billingServiceProvider).buyRemoveAds();
-    if (!context.mounted) return;
-    if (outcome == PurchaseOutcome.purchased ||
-        outcome == PurchaseOutcome.alreadyOwned ||
-        outcome == PurchaseOutcome.restored) {
-      ref.read(profileControllerProvider.notifier).setRemoveAds(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ads removed. Thank you!')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Billing is not available in this build.')),
-      );
-    }
   }
 }
 

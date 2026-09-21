@@ -29,6 +29,8 @@ class NonogramApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Instantiate billing early so it can connect and deliver owned purchases.
+    ref.watch(billingServiceProvider);
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
       title: 'Pixel Cross',

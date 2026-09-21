@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../core/billing/billing_service.dart';
+
+const String _privacyPolicyUrl =
+    'https://api.buildprivacypolicy.com/policy/62e76d2f-5b52-4b4f-928b-273e3098f3c1';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -40,16 +44,19 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: ctrl.setAutoCross,
           ),
           _section('Purchases'),
+          if (profile.removeAds)
+            const ListTile(
+              leading: Icon(Icons.verified, color: AppTheme.success),
+              title: Text('Lifetime Ads-Free'),
+              subtitle: Text('Purchased — thank you!'),
+            )
+          else
+            _LifetimeAdsFreeTile(onBuy: () => _buyLifetime(context, ref)),
           ListTile(
             leading: const Icon(Icons.restore),
             title: const Text('Restore Purchases'),
             onTap: () => _restore(context, ref),
           ),
-          if (profile.removeAds)
-            const ListTile(
-              leading: Icon(Icons.verified, color: AppTheme.success),
-              title: Text('Ads removed'),
-            ),
           _section('About'),
           ListTile(
             leading: const Icon(Icons.mail_outline),
@@ -60,8 +67,8 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
             title: const Text('Privacy Policy'),
-            onTap: () => _info(context, 'Privacy Policy',
-                'This game stores your progress only on this device. See the published policy before release.'),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () => _openUrl(context, _privacyPolicyUrl),
           ),
           ListTile(
             leading: const Icon(Icons.description_outlined),
@@ -108,23 +115,46 @@ class SettingsScreen extends ConsumerWidget {
                 fontSize: 13)),
       );
 
+  Future<void> _buyLifetime(BuildContext context, WidgetRef ref) async {
+    final outcome = await ref.read(billingServiceProvider).buyRemoveAds();
+    if (!context.mounted) return;
+    // A successful purchase is confirmed asynchronously on the billing stream,
+    // which grants the entitlement and flips the tile to "Purchased".
+    final msg = switch (outcome) {
+      PurchaseOutcome.pending => 'Opening Google Play checkout…',
+      PurchaseOutcome.unavailable =>
+        'Google Play Billing is unavailable on this device.',
+      _ => 'Could not start the purchase. Please try again.',
+    };
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   Future<void> _restore(BuildContext context, WidgetRef ref) async {
     final outcome = await ref.read(billingServiceProvider).restorePurchases();
     if (!context.mounted) return;
+    // Restored ownership is delivered on the billing stream and grants the
+    // entitlement automatically; here we just acknowledge the request.
     final msg = switch (outcome) {
-      PurchaseOutcome.restored ||
-      PurchaseOutcome.alreadyOwned =>
-        'Purchases restored.',
+      PurchaseOutcome.pending => 'Checking for previous purchases…',
       PurchaseOutcome.unavailable =>
-        'Billing is not available in this build.',
-      _ => 'Nothing to restore.',
+        'Google Play Billing is unavailable on this device.',
+      _ => 'Could not restore purchases.',
     };
-    if (outcome == PurchaseOutcome.restored ||
-        outcome == PurchaseOutcome.alreadyOwned) {
-      ref.read(profileControllerProvider.notifier).setRemoveAds(true);
-    }
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _openUrl(BuildContext context, String url) async {
+    final ok = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the link.')),
+      );
+    }
   }
 
   void _info(BuildContext context, String title, String body) {
@@ -164,6 +194,26 @@ class SettingsScreen extends ConsumerWidget {
             child: const Text('Reset'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The single lifetime Remove Ads purchase option, shown only in Settings.
+class _LifetimeAdsFreeTile extends ConsumerWidget {
+  final VoidCallback onBuy;
+  const _LifetimeAdsFreeTile({required this.onBuy});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final price = ref.watch(billingServiceProvider).displayPrice;
+    return ListTile(
+      leading: const Icon(Icons.block, color: AppTheme.primary),
+      title: const Text('Lifetime Ads-Free'),
+      subtitle: const Text('One-time purchase · removes all ads forever'),
+      trailing: FilledButton(
+        onPressed: onBuy,
+        child: Text(price),
       ),
     );
   }

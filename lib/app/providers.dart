@@ -28,7 +28,13 @@ final adManagerProvider = Provider<AdManager>((ref) {
 
 final billingServiceProvider = Provider<BillingService>((ref) {
   final service = BillingService();
+  // A verified purchase or restore grants the lifetime entitlement.
+  service.onEntitlementGranted = () {
+    ref.read(profileControllerProvider.notifier).setRemoveAds(true);
+  };
   ref.onDispose(service.dispose);
+  // Fire-and-forget init: connects the store and delivers any owned purchase.
+  service.init();
   return service;
 });
 
