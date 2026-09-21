@@ -43,6 +43,35 @@ class SettingsScreen extends ConsumerWidget {
             value: profile.autoCrossOn,
             onChanged: ctrl.setAutoCross,
           ),
+          SwitchListTile(
+            title: const Text('Daily Reminder'),
+            subtitle: const Text('A gentle daily nudge to keep your streak'),
+            value: profile.dailyReminderOn,
+            onChanged: (v) => _toggleReminder(context, ref, v),
+          ),
+          _section('Appearance'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(
+                    value: 0,
+                    label: Text('System'),
+                    icon: Icon(Icons.brightness_auto)),
+                ButtonSegment(
+                    value: 1,
+                    label: Text('Light'),
+                    icon: Icon(Icons.light_mode)),
+                ButtonSegment(
+                    value: 2,
+                    label: Text('Dark'),
+                    icon: Icon(Icons.dark_mode)),
+              ],
+              selected: {profile.themeModeIndex},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) => ctrl.setThemeMode(s.first),
+            ),
+          ),
           _section('Purchases'),
           if (profile.removeAds)
             const ListTile(
@@ -94,8 +123,8 @@ class SettingsScreen extends ConsumerWidget {
                 style: TextStyle(color: AppTheme.heart)),
             onTap: () => _confirmReset(context, ref),
           ),
-          const Padding(
-            padding: EdgeInsets.all(16),
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: Center(
               child: Text('Pixel Cross · v1.0.0',
                   style: TextStyle(color: AppTheme.inkSoft)),
@@ -109,11 +138,37 @@ class SettingsScreen extends ConsumerWidget {
   Widget _section(String title) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
         child: Text(title,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppTheme.inkSoft,
                 fontWeight: FontWeight.w800,
                 fontSize: 13)),
       );
+
+  Future<void> _toggleReminder(
+    BuildContext context,
+    WidgetRef ref,
+    bool on,
+  ) async {
+    final notifications = ref.read(notificationServiceProvider);
+    if (on) {
+      final granted = await notifications.requestPermission();
+      if (!granted) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Enable notifications in system settings.')),
+          );
+        }
+        return;
+      }
+      await notifications.scheduleDailyReminder();
+      await notifications.showNow(
+          'Reminders on', 'We\'ll nudge you daily to keep your streak.');
+    } else {
+      await notifications.cancelAll();
+    }
+    ref.read(profileControllerProvider.notifier).setDailyReminder(on);
+  }
 
   Future<void> _buyLifetime(BuildContext context, WidgetRef ref) async {
     final outcome = await ref.read(billingServiceProvider).buyRemoveAds();

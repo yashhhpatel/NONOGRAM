@@ -41,7 +41,7 @@ class DailyChallengeScreen extends ConsumerWidget {
                   const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text('$completedThisMonth / $daysInMonth completed this month',
-              style: const TextStyle(color: AppTheme.inkSoft)),
+              style: TextStyle(color: AppTheme.inkSoft)),
           const SizedBox(height: 16),
           _weekdayHeader(),
           const SizedBox(height: 8),
@@ -101,7 +101,7 @@ class DailyChallengeScreen extends ConsumerWidget {
           Expanded(
             child: Center(
               child: Text(l,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppTheme.inkSoft, fontWeight: FontWeight.w700)),
             ),
           ),
@@ -142,11 +142,11 @@ class _DayCell extends StatelessWidget {
               color: Colors.white, fontWeight: FontWeight.w800));
     } else if (isFuture) {
       bg = AppTheme.card;
-      child = const Icon(Icons.lock, size: 14, color: AppTheme.line);
+      child = Icon(Icons.lock, size: 14, color: AppTheme.line);
     } else {
       bg = AppTheme.card;
       child = Text('$day',
-          style: const TextStyle(color: AppTheme.inkSoft));
+          style: TextStyle(color: AppTheme.inkSoft));
     }
 
     return GestureDetector(

@@ -12,6 +12,7 @@ class BoardPainter extends CustomPainter {
   final List<List<CellState>> grid;
   final BoardMetrics m;
   final ({int r, int c})? highlight;
+  final Color fillColor;
   final bool solvedRowsColsHint;
 
   BoardPainter({
@@ -19,6 +20,7 @@ class BoardPainter extends CustomPainter {
     required this.grid,
     required this.m,
     required this.highlight,
+    required this.fillColor,
     this.solvedRowsColsHint = false,
   });
 
@@ -38,11 +40,11 @@ class BoardPainter extends CustomPainter {
       m.cols * m.cellSize,
       m.rows * m.cellSize,
     );
-    canvas.drawRect(rect, Paint()..color = Colors.white);
+    canvas.drawRect(rect, Paint()..color = AppTheme.boardBg);
   }
 
   void _paintCells(Canvas canvas) {
-    final fill = Paint()..color = AppTheme.filled;
+    final fill = Paint()..color = fillColor;
     for (var r = 0; r < m.rows; r++) {
       for (var c = 0; c < m.cols; c++) {
         final state = grid[r][c];
@@ -198,6 +200,7 @@ class BoardPainter extends CustomPainter {
   bool shouldRepaint(covariant BoardPainter oldDelegate) {
     return oldDelegate.grid != grid ||
         oldDelegate.highlight != highlight ||
+        oldDelegate.fillColor != fillColor ||
         oldDelegate.m.cellSize != m.cellSize;
   }
 }

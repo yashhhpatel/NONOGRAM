@@ -134,7 +134,7 @@ class DailyRewardScreen extends ConsumerWidget {
                 style: const TextStyle(
                     fontSize: 22, fontWeight: FontWeight.w900)),
             const SizedBox(height: 4),
-            const Text('See you tomorrow for more.',
+            Text('See you tomorrow for more.',
                 style: TextStyle(color: AppTheme.inkSoft)),
           ],
         ),
@@ -187,7 +187,7 @@ class _DayTile extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(big ? 'Day 7' : 'Day $day',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 11, color: AppTheme.inkSoft)),
           const SizedBox(height: 6),
           if (collected)
@@ -198,7 +198,7 @@ class _DayTile extends StatelessWidget {
                 size: big ? 30 : 24),
           const SizedBox(height: 4),
           Text('$coins',
-              style: const TextStyle(
+              style: TextStyle(
                   fontWeight: FontWeight.w800, color: AppTheme.ink)),
         ],
       ),

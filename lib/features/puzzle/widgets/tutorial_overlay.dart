@@ -138,11 +138,11 @@ class _Card extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(step.title,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.ink)),
           const SizedBox(height: 8),
           Text(step.body,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15, color: AppTheme.inkSoft, height: 1.4)),
           const SizedBox(height: 16),
           Row(

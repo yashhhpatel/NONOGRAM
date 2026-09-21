@@ -82,7 +82,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         const SizedBox(height: 32),
                         Text(
                           p.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.ink,
@@ -92,7 +92,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         const SizedBox(height: 12),
                         Text(
                           p.body,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             color: AppTheme.inkSoft,
                             height: 1.4,

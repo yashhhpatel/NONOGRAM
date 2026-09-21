@@ -12,6 +12,13 @@ class PlayerProfile {
   final bool hapticsOn;
   final bool autoCrossOn;
 
+  // Appearance: 0 = system, 1 = light, 2 = dark.
+  final int themeModeIndex;
+
+  // Board skins.
+  final Set<String> ownedThemes; // includes 'classic'
+  final String selectedTheme;
+
   // Monetization.
   final bool removeAds;
 
@@ -20,6 +27,9 @@ class PlayerProfile {
 
   // Whether the in-game Level 1 tutorial has been shown.
   final bool tutorialDone;
+
+  // Optional local daily reminder notification.
+  final bool dailyReminderOn;
 
   // Per-level results.
   final Map<int, LevelProgress> levels;
@@ -40,9 +50,13 @@ class PlayerProfile {
     required this.musicOn,
     required this.hapticsOn,
     required this.autoCrossOn,
+    required this.themeModeIndex,
+    required this.ownedThemes,
+    required this.selectedTheme,
     required this.removeAds,
     required this.onboardingDone,
     required this.tutorialDone,
+    required this.dailyReminderOn,
     required this.levels,
     required this.completedDailyDates,
     required this.dailyStreak,
@@ -58,9 +72,13 @@ class PlayerProfile {
         musicOn: true,
         hapticsOn: true,
         autoCrossOn: true,
+        themeModeIndex: 0,
+        ownedThemes: {'classic'},
+        selectedTheme: 'classic',
         removeAds: false,
         onboardingDone: false,
         tutorialDone: false,
+        dailyReminderOn: false,
         levels: {},
         completedDailyDates: {},
         dailyStreak: 0,
@@ -84,9 +102,13 @@ class PlayerProfile {
     bool? musicOn,
     bool? hapticsOn,
     bool? autoCrossOn,
+    int? themeModeIndex,
+    Set<String>? ownedThemes,
+    String? selectedTheme,
     bool? removeAds,
     bool? onboardingDone,
     bool? tutorialDone,
+    bool? dailyReminderOn,
     Map<int, LevelProgress>? levels,
     Set<String>? completedDailyDates,
     int? dailyStreak,
@@ -101,9 +123,13 @@ class PlayerProfile {
       musicOn: musicOn ?? this.musicOn,
       hapticsOn: hapticsOn ?? this.hapticsOn,
       autoCrossOn: autoCrossOn ?? this.autoCrossOn,
+      themeModeIndex: themeModeIndex ?? this.themeModeIndex,
+      ownedThemes: ownedThemes ?? this.ownedThemes,
+      selectedTheme: selectedTheme ?? this.selectedTheme,
       removeAds: removeAds ?? this.removeAds,
       onboardingDone: onboardingDone ?? this.onboardingDone,
       tutorialDone: tutorialDone ?? this.tutorialDone,
+      dailyReminderOn: dailyReminderOn ?? this.dailyReminderOn,
       levels: levels ?? this.levels,
       completedDailyDates: completedDailyDates ?? this.completedDailyDates,
       dailyStreak: dailyStreak ?? this.dailyStreak,
@@ -120,9 +146,13 @@ class PlayerProfile {
         'musicOn': musicOn,
         'hapticsOn': hapticsOn,
         'autoCrossOn': autoCrossOn,
+        'themeModeIndex': themeModeIndex,
+        'ownedThemes': ownedThemes.toList(),
+        'selectedTheme': selectedTheme,
         'removeAds': removeAds,
         'onboardingDone': onboardingDone,
         'tutorialDone': tutorialDone,
+        'dailyReminderOn': dailyReminderOn,
         'levels': levels.values.map((lp) => lp.toJson()).toList(),
         'completedDailyDates': completedDailyDates.toList(),
         'dailyStreak': dailyStreak,
@@ -141,9 +171,15 @@ class PlayerProfile {
       musicOn: j['musicOn'] as bool? ?? true,
       hapticsOn: j['hapticsOn'] as bool? ?? true,
       autoCrossOn: j['autoCrossOn'] as bool? ?? true,
+      themeModeIndex: j['themeModeIndex'] as int? ?? 0,
+      ownedThemes:
+          (j['ownedThemes'] as List<dynamic>? ?? ['classic']).cast<String>().toSet()
+            ..add('classic'),
+      selectedTheme: j['selectedTheme'] as String? ?? 'classic',
       removeAds: j['removeAds'] as bool? ?? false,
       onboardingDone: j['onboardingDone'] as bool? ?? false,
       tutorialDone: j['tutorialDone'] as bool? ?? false,
+      dailyReminderOn: j['dailyReminderOn'] as bool? ?? false,
       levels: {for (final lp in levelList) lp.levelId: lp},
       completedDailyDates:
           (j['completedDailyDates'] as List<dynamic>? ?? []).cast<String>().toSet(),

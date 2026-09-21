@@ -26,7 +26,7 @@ class PicturePreview extends StatelessWidget {
       height: size,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.boardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.line),
       ),

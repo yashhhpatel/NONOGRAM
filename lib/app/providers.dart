@@ -4,6 +4,7 @@ import '../core/ads/ad_manager.dart';
 import '../core/audio/audio_service.dart';
 import '../core/billing/billing_service.dart';
 import '../core/haptics/haptics_service.dart';
+import '../core/notifications/notification_service.dart';
 import '../core/storage/storage_service.dart';
 import '../game/data/puzzle_repository.dart';
 import '../game/models/level_progress.dart';
@@ -19,6 +20,8 @@ final hapticsServiceProvider =
     Provider<HapticsService>((ref) => const HapticsService());
 final puzzleRepositoryProvider =
     Provider<PuzzleRepository>((ref) => PuzzleRepository());
+final notificationServiceProvider =
+    Provider<NotificationService>((ref) => NotificationService());
 
 final adManagerProvider = Provider<AdManager>((ref) {
   final profile = ref.watch(profileControllerProvider);
@@ -82,6 +85,28 @@ class ProfileController extends StateNotifier<PlayerProfile> {
   void setHaptics(bool v) => _commit(state.copyWith(hapticsOn: v));
   void setAutoCross(bool v) => _commit(state.copyWith(autoCrossOn: v));
   void setRemoveAds(bool v) => _commit(state.copyWith(removeAds: v));
+  void setDailyReminder(bool v) =>
+      _commit(state.copyWith(dailyReminderOn: v));
+  void setThemeMode(int index) =>
+      _commit(state.copyWith(themeModeIndex: index));
+
+  /// Buys a board theme if affordable and not owned. Returns true on success.
+  bool buyTheme(String id, int cost) {
+    if (state.ownedThemes.contains(id)) return true;
+    if (state.coins < cost) return false;
+    final owned = Set<String>.of(state.ownedThemes)..add(id);
+    _commit(state.copyWith(
+      coins: state.coins - cost,
+      ownedThemes: owned,
+      selectedTheme: id,
+    ));
+    return true;
+  }
+
+  void selectTheme(String id) {
+    if (!state.ownedThemes.contains(id)) return;
+    _commit(state.copyWith(selectedTheme: id));
+  }
 
   /// Records a completed level result, awarding coins and unlocking the next
   /// level. Returns the coins awarded.

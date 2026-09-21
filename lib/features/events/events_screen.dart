@@ -97,7 +97,7 @@ class _EventCard extends StatelessWidget {
                         style: const TextStyle(
                             fontWeight: FontWeight.w800, fontSize: 16)),
                     Text('${def.category} theme',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppTheme.inkSoft, fontSize: 12)),
                   ],
                 ),
@@ -118,7 +118,7 @@ class _EventCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text('$progress / ${def.target} puzzles',
-              style: const TextStyle(color: AppTheme.inkSoft, fontSize: 12)),
+              style: TextStyle(color: AppTheme.inkSoft, fontSize: 12)),
         ],
       ),
     );

@@ -13,6 +13,7 @@ import 'dart:io';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/data/level_catalog.dart';
+import '../../game/models/board_theme.dart';
 import '../../game/models/game_state.dart';
 import '../../game/models/puzzle.dart';
 import 'board_metrics.dart';
@@ -84,6 +85,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
     final gameState = ref.watch(gameControllerProvider(widget.levelId));
     final puzzle = gameState.puzzle;
     final profile = ref.watch(profileControllerProvider);
+    final fillColor = BoardThemes.byId(profile.selectedTheme).fillColor;
 
     return Scaffold(
       body: SafeArea(
@@ -92,7 +94,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
             Column(
               children: [
                 _TopBar(state: gameState),
-                Expanded(child: _buildBoard(gameState, puzzle)),
+                Expanded(child: _buildBoard(gameState, puzzle, fillColor)),
                 _Controls(
                   state: gameState,
                   hintsAvailable: profile.hints,
@@ -130,7 +132,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
     }
   }
 
-  Widget _buildBoard(GameState state, Puzzle puzzle) {
+  Widget _buildBoard(GameState state, Puzzle puzzle, Color fillColor) {
     return LayoutBuilder(
       builder: (context, constraints) {
         const pad = 12.0;
@@ -157,6 +159,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
                 grid: state.playerGrid,
                 m: metrics,
                 highlight: state.highlight,
+                fillColor: fillColor,
               ),
             ),
           ),
@@ -204,7 +207,7 @@ class _TopBar extends StatelessWidget {
               ),
               Text(
                 '${state.puzzle.difficulty.label} · ${state.puzzle.category}',
-                style: const TextStyle(color: AppTheme.inkSoft, fontSize: 12),
+                style: TextStyle(color: AppTheme.inkSoft, fontSize: 12),
               ),
             ],
           ),
@@ -228,10 +231,10 @@ class _Timer extends StatelessWidget {
     final s = (seconds % 60).toString().padLeft(2, '0');
     return Row(
       children: [
-        const Icon(Icons.timer_outlined, size: 16, color: AppTheme.inkSoft),
+        Icon(Icons.timer_outlined, size: 16, color: AppTheme.inkSoft),
         const SizedBox(width: 4),
         Text('$m:$s',
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppTheme.inkSoft, fontWeight: FontWeight.w600)),
       ],
     );
@@ -333,7 +336,7 @@ class _ControlButton extends StatelessWidget {
               Icon(icon, size: 20, color: AppTheme.ink),
               const SizedBox(width: 5),
               Text(label,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.w600, color: AppTheme.ink)),
             ],
           ),
@@ -481,7 +484,7 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
                   state.puzzle.category == 'Daily'
                       ? 'Daily Challenge'
                       : 'Level $levelId',
-                  style: const TextStyle(color: AppTheme.inkSoft)),
+                  style: TextStyle(color: AppTheme.inkSoft)),
               const SizedBox(height: 14),
               _AnimatedStars(stars: state.stars),
               const SizedBox(height: 12),
@@ -607,7 +610,7 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
               style: const TextStyle(
                   fontWeight: FontWeight.w800, fontSize: 18)),
           Text(label,
-              style: const TextStyle(color: AppTheme.inkSoft, fontSize: 12)),
+              style: TextStyle(color: AppTheme.inkSoft, fontSize: 12)),
         ],
       );
 }
@@ -656,7 +659,7 @@ class _GameOverOverlay extends ConsumerWidget {
           const Text('Out of Hearts',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
           const SizedBox(height: 6),
-          const Text('Restore hearts to keep going, or restart the level.',
+          Text('Restore hearts to keep going, or restart the level.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppTheme.inkSoft)),
           const SizedBox(height: 20),

@@ -136,7 +136,7 @@ class _LevelNode extends StatelessWidget {
                   ? Text('$id',
                       style: TextStyle(
                           fontWeight: FontWeight.w800, color: fg, fontSize: 18))
-                  : const Icon(Icons.lock, color: AppTheme.inkSoft, size: 20),
+                  : Icon(Icons.lock, color: AppTheme.inkSoft, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
