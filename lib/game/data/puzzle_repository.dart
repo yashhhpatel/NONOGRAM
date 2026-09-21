@@ -32,36 +32,38 @@ class PuzzleRepository {
     return puzzle;
   }
 
+  /// Levels at or below this use hand-authored art (a gentle, recognizable
+  /// teaching zone). Beyond it, puzzles follow the difficulty ramp.
+  static const int _artTeachingLevels = 10;
+
   Puzzle _buildDaily(int id) {
-    // Deterministic 10×10 puzzle seeded by the encoded date.
+    // Deterministic 10×10 daily at a fixed medium hardness.
     return PuzzleGenerator.generate(
       id: id,
       size: 10,
       category: 'Daily',
       title: 'Daily Challenge',
+      hardness: 0.45,
     );
   }
 
   Puzzle _build(LevelInfo info) {
-    final art = ArtLibrary.forBandIndex(info.size, info.indexInBand);
-    if (art != null) {
-      final candidate = Puzzle.fromSolution(
-        id: info.id,
-        solution: art.toSolution(),
-        difficulty: Difficulty.veryEasy,
-        category: art.category,
-        title: art.title,
-      );
-      if (PuzzleValidator.validate(candidate).valid) {
-        return Puzzle.fromSolution(
+    // Recognizable teaching pictures for the very first levels only, so the
+    // generated ramp governs difficulty everywhere else.
+    if (info.id <= _artTeachingLevels) {
+      final art = ArtLibrary.forBandIndex(info.size, info.indexInBand);
+      if (art != null) {
+        final candidate = Puzzle.fromSolution(
           id: info.id,
-          solution: candidate.solution,
-          difficulty: _difficultyForArt(candidate),
+          solution: art.toSolution(),
+          difficulty: Difficulty.veryEasy,
           category: art.category,
           title: art.title,
         );
+        if (PuzzleValidator.validate(candidate).valid) {
+          return candidate;
+        }
       }
-      // Malformed art must never ship: fall through to generation.
     }
 
     return PuzzleGenerator.generate(
@@ -69,11 +71,7 @@ class PuzzleRepository {
       size: info.size,
       category: info.category,
       title: '${info.category} #${info.id}',
+      hardness: PuzzleGenerator.hardnessForLevel(info.id),
     );
-  }
-
-  Difficulty _difficultyForArt(Puzzle p) {
-    // Early art is intentionally gentle; keep it in the easy range.
-    return p.size <= 6 ? Difficulty.veryEasy : Difficulty.easy;
   }
 }
