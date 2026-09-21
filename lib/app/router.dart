@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/achievements/achievements_screen.dart';
+import '../features/color_puzzle/color_levels_screen.dart';
+import '../features/color_puzzle/color_puzzle_screen.dart';
 import '../features/daily/daily_challenge_screen.dart';
 import '../features/daily/daily_reward_screen.dart';
 import '../features/events/events_screen.dart';
@@ -47,6 +49,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/achievements',
         builder: (_, __) => const AchievementsScreen(),
+      ),
+      GoRoute(path: '/color', builder: (_, __) => const ColorLevelsScreen()),
+      GoRoute(
+        path: '/color/:i',
+        builder: (_, state) {
+          final i = int.tryParse(state.pathParameters['i'] ?? '0') ?? 0;
+          return ColorPuzzleScreen(index: i);
+        },
       ),
       GoRoute(
         path: '/tournament',

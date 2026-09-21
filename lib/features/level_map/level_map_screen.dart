@@ -5,6 +5,22 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/data/level_catalog.dart';
+import '../../game/data/world_catalog.dart';
+
+/// One row in the map: either a world header or a level node.
+sealed class _MapItem {
+  const _MapItem();
+}
+
+class _HeaderItem extends _MapItem {
+  final GameWorld world;
+  const _HeaderItem(this.world);
+}
+
+class _LevelItem extends _MapItem {
+  final int id;
+  const _LevelItem(this.id);
+}
 
 class LevelMapScreen extends ConsumerStatefulWidget {
   const LevelMapScreen({super.key});
@@ -15,21 +31,38 @@ class LevelMapScreen extends ConsumerStatefulWidget {
 
 class _LevelMapScreenState extends ConsumerState<LevelMapScreen> {
   late final ScrollController _scroll;
-  static const _itemExtent = 96.0;
+  late final List<_MapItem> _items;
+  static const _levelExtent = 96.0;
+  static const _headerExtent = 84.0;
 
   @override
   void initState() {
     super.initState();
     _scroll = ScrollController();
-    // Jump near the current level after first layout.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final current = ref.read(profileControllerProvider).highestUnlocked;
-      final target = ((current - 1) * _itemExtent - 200).clamp(
-        0.0,
-        _scroll.position.maxScrollExtent,
-      );
-      _scroll.jumpTo(target);
-    });
+    _items = _buildItems();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToCurrent());
+  }
+
+  List<_MapItem> _buildItems() {
+    final items = <_MapItem>[];
+    for (var id = 1; id <= LevelCatalog.totalLevels; id++) {
+      if (WorldCatalog.isWorldStart(id)) {
+        items.add(_HeaderItem(WorldCatalog.forLevel(id)));
+      }
+      items.add(_LevelItem(id));
+    }
+    return items;
+  }
+
+  void _jumpToCurrent() {
+    final current = ref.read(profileControllerProvider).highestUnlocked;
+    var offset = 0.0;
+    for (final item in _items) {
+      if (item is _LevelItem && item.id == current) break;
+      offset += item is _HeaderItem ? _headerExtent : _levelExtent;
+    }
+    final target = (offset - 240).clamp(0.0, _scroll.position.maxScrollExtent);
+    _scroll.jumpTo(target);
   }
 
   @override
@@ -46,30 +79,40 @@ class _LevelMapScreenState extends ConsumerState<LevelMapScreen> {
       appBar: AppBar(title: const Text('Level Map')),
       body: ListView.builder(
         controller: _scroll,
-        itemCount: LevelCatalog.totalLevels,
-        itemExtent: _itemExtent,
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        itemCount: _items.length,
+        padding: const EdgeInsets.only(bottom: 24),
         itemBuilder: (context, index) {
-          final id = index + 1;
+          final item = _items[index];
+          if (item is _HeaderItem) {
+            return _WorldHeader(world: item.world);
+          }
+          final id = (item as _LevelItem).id;
           final info = LevelCatalog.infoFor(id);
           final unlocked = profile.isUnlocked(id);
           final progress = profile.levels[id];
           final isCurrent = id == profile.highestUnlocked;
-          // Winding path: alternate alignment.
-          final alignLeft = index.isEven;
+          final isChest = WorldCatalog.isChestLevel(id);
+          final alignLeft = id.isEven;
 
-          return Align(
-            alignment: alignLeft ? Alignment.centerLeft : Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: _LevelNode(
-                id: id,
-                size: info.size,
-                category: info.category,
-                unlocked: unlocked,
-                isCurrent: isCurrent,
-                stars: progress?.stars ?? 0,
-                onTap: unlocked ? () => context.push('/game/$id') : null,
+          return SizedBox(
+            height: _levelExtent,
+            child: Align(
+              alignment:
+                  alignLeft ? Alignment.centerLeft : Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: _LevelNode(
+                  id: id,
+                  size: info.size,
+                  category: info.category,
+                  world: WorldCatalog.forLevel(id),
+                  unlocked: unlocked,
+                  isCurrent: isCurrent,
+                  isChest: isChest,
+                  chestOpened: progress?.completed ?? false,
+                  stars: progress?.stars ?? 0,
+                  onTap: unlocked ? () => context.push('/game/$id') : null,
+                ),
               ),
             ),
           );
@@ -79,12 +122,61 @@ class _LevelMapScreenState extends ConsumerState<LevelMapScreen> {
   }
 }
 
+class _WorldHeader extends StatelessWidget {
+  final GameWorld world;
+  const _WorldHeader({required this.world});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 84,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [world.color, world.color.withOpacity(0.65)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Icon(world.icon, color: Colors.white, size: 30),
+          const SizedBox(width: 14),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('WORLD ${world.index}',
+                  style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1)),
+              Text(world.name,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900)),
+            ],
+          ),
+          const Spacer(),
+          Text('${world.start}–${world.end}',
+              style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+}
+
 class _LevelNode extends StatelessWidget {
   final int id;
   final int size;
   final String category;
+  final GameWorld world;
   final bool unlocked;
   final bool isCurrent;
+  final bool isChest;
+  final bool chestOpened;
   final int stars;
   final VoidCallback? onTap;
 
@@ -92,8 +184,11 @@ class _LevelNode extends StatelessWidget {
     required this.id,
     required this.size,
     required this.category,
+    required this.world,
     required this.unlocked,
     required this.isCurrent,
+    required this.isChest,
+    required this.chestOpened,
     required this.stars,
     required this.onTap,
   });
@@ -103,7 +198,7 @@ class _LevelNode extends StatelessWidget {
     final bg = !unlocked
         ? AppTheme.line
         : isCurrent
-            ? AppTheme.primary
+            ? world.color
             : AppTheme.card;
     final fg = isCurrent ? Colors.white : AppTheme.ink;
 
@@ -111,13 +206,13 @@ class _LevelNode extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
-        width: 220,
+        width: 230,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isCurrent ? AppTheme.primaryDark : AppTheme.line,
+            color: isCurrent ? world.color : AppTheme.line,
           ),
         ),
         child: Row(
@@ -143,10 +238,29 @@ class _LevelNode extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    unlocked ? category : 'Locked',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700, color: fg, fontSize: 14),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          unlocked ? category : 'Locked',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: fg,
+                              fontSize: 14),
+                        ),
+                      ),
+                      if (isChest) ...[
+                        const SizedBox(width: 6),
+                        Icon(
+                          chestOpened ? Icons.inventory_2 : Icons.inventory_2_outlined,
+                          size: 16,
+                          color: chestOpened
+                              ? AppTheme.accent
+                              : (isCurrent ? Colors.white : AppTheme.accent),
+                        ),
+                      ],
+                    ],
                   ),
                   Text(
                     '$size × $size',

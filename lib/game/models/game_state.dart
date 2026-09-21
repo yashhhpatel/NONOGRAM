@@ -32,6 +32,7 @@ class GameState {
   final bool isComplete;
   final int stars;
   final int earnedCoins;
+  final int earnedChestBonus;
   final List<GameSnapshot> history;
 
   /// Cell most recently revealed by a hint, for a brief highlight in the UI.
@@ -50,6 +51,7 @@ class GameState {
     required this.isComplete,
     required this.stars,
     required this.earnedCoins,
+    required this.earnedChestBonus,
     required this.history,
     required this.highlight,
   });
@@ -72,6 +74,7 @@ class GameState {
       isComplete: false,
       stars: 0,
       earnedCoins: 0,
+      earnedChestBonus: 0,
       history: const [],
       highlight: null,
     );
@@ -91,6 +94,7 @@ class GameState {
     bool? isComplete,
     int? stars,
     int? earnedCoins,
+    int? earnedChestBonus,
     List<GameSnapshot>? history,
     ({int r, int c})? highlight,
     bool clearHighlight = false,
@@ -108,6 +112,7 @@ class GameState {
       isComplete: isComplete ?? this.isComplete,
       stars: stars ?? this.stars,
       earnedCoins: earnedCoins ?? this.earnedCoins,
+      earnedChestBonus: earnedChestBonus ?? this.earnedChestBonus,
       history: history ?? this.history,
       highlight: clearHighlight ? null : (highlight ?? this.highlight),
     );

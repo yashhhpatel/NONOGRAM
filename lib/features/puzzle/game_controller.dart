@@ -7,6 +7,7 @@ import '../../core/audio/audio_service.dart';
 import '../../core/storage/storage_service.dart';
 import '../../game/data/level_catalog.dart';
 import '../../game/data/puzzle_repository.dart';
+import '../../game/data/world_catalog.dart';
 import '../../game/util/date_key.dart';
 import '../../game/engine/auto_cross_engine.dart';
 import '../../game/engine/completion_engine.dart';
@@ -275,16 +276,29 @@ class GameController extends StateNotifier<GameState> {
       hintsUsed: state.hintsUsed,
       elapsedSeconds: state.elapsedSeconds,
     );
-    final coins = ScoringEngine.coins(
+    final baseCoins = ScoringEngine.coins(
       difficulty: _puzzle.difficulty,
       stars: stars,
     );
+
+    // Milestone chest: a one-time bonus the first time a chest level is solved.
+    final isCampaign = !PuzzleRepository.isDailyId(_puzzle.id);
+    final alreadyDone =
+        _ref.read(profileControllerProvider).levels[_puzzle.id]?.completed ??
+            false;
+    final chestBonus = (isCampaign &&
+            WorldCatalog.isChestLevel(_puzzle.id) &&
+            !alreadyDone)
+        ? WorldCatalog.chestReward(_puzzle.id)
+        : 0;
+    final coins = baseCoins + chestBonus;
 
     state = state.copyWith(
       playerGrid: grid,
       isComplete: true,
       stars: stars,
-      earnedCoins: coins,
+      earnedCoins: baseCoins,
+      earnedChestBonus: chestBonus,
     );
 
     _ref.read(hapticsServiceProvider).complete(_hapticsOn);

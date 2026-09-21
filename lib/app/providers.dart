@@ -108,6 +108,16 @@ class ProfileController extends StateNotifier<PlayerProfile> {
     _commit(state.copyWith(selectedTheme: id));
   }
 
+  /// Records a completed colored puzzle, awarding coins the first time.
+  void markColorComplete(int index, {int coinReward = 25}) {
+    if (state.completedColor.contains(index)) return;
+    final done = Set<int>.of(state.completedColor)..add(index);
+    _commit(state.copyWith(
+      completedColor: done,
+      coins: state.coins + coinReward,
+    ));
+  }
+
   /// Records a completed level result, awarding coins and unlocking the next
   /// level. Returns the coins awarded.
   void recordLevelResult({

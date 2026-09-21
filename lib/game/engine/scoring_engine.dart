@@ -12,13 +12,25 @@ class ScoringEngine {
     required int mistakes,
     required int hintsUsed,
     required int elapsedSeconds,
+  }) =>
+      starsBySize(
+        rows: puzzle.rows,
+        cols: puzzle.cols,
+        mistakes: mistakes,
+        hintsUsed: hintsUsed,
+      );
+
+  /// Stars from board size + mistakes + hints, usable by any puzzle variant.
+  static int starsBySize({
+    required int rows,
+    required int cols,
+    required int mistakes,
+    required int hintsUsed,
   }) {
     // A hint is weighted like two mistakes: it hands over a cell outright.
     final penalty = mistakes + hintsUsed * 2;
-
     // Larger boards allow a little more slack.
-    final slack = (puzzle.rows * puzzle.cols) ~/ 60; // 0 for small, grows big
-
+    final slack = (rows * cols) ~/ 60;
     if (penalty <= 0 + slack) return 3;
     if (penalty <= 3 + slack) return 2;
     return 1;

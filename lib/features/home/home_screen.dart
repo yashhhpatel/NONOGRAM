@@ -73,6 +73,8 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   label: const Text('Level Map'),
                 ),
+                const SizedBox(height: 12),
+                _ColorPicrossBanner(onTap: () => context.push('/color')),
                 const SizedBox(height: 28),
                 Row(
                   children: [
@@ -221,6 +223,48 @@ class _DecoPatternPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DecoPatternPainter old) => old.seed != seed;
+}
+
+class _ColorPicrossBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ColorPicrossBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFEC407A), Color(0xFF8E24AA)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.palette, color: Colors.white, size: 26),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Color Picross',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16)),
+                  Text('Paint pictures by the numbers',
+                      style: TextStyle(color: Colors.white70, fontSize: 12)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.white),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _StreakChip extends StatelessWidget {

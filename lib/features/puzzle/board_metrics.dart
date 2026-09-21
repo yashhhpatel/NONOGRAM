@@ -46,13 +46,26 @@ class BoardMetrics {
     final maxColClue = puzzle.columnClues
         .map((c) => c.length)
         .fold<int>(1, (a, b) => a > b ? a : b);
+    return computeFor(
+      rows: puzzle.rows,
+      cols: puzzle.cols,
+      maxRowClue: maxRowClue,
+      maxColClue: maxColClue,
+      availableWidth: availableWidth,
+      availableHeight: availableHeight,
+    );
+  }
 
-    // cell must satisfy: rowGutter + cols*cell <= W  and colGutter + rows*cell <= H
-    // rowGutter = maxRowClue * clueRatio * cell ; colGutter similar.
-    final wCell =
-        availableWidth / (puzzle.cols + maxRowClue * _clueRatio);
-    final hCell =
-        availableHeight / (puzzle.rows + maxColClue * _clueRatio);
+  static BoardMetrics computeFor({
+    required int rows,
+    required int cols,
+    required int maxRowClue,
+    required int maxColClue,
+    required double availableWidth,
+    required double availableHeight,
+  }) {
+    final wCell = availableWidth / (cols + maxRowClue * _clueRatio);
+    final hCell = availableHeight / (rows + maxColClue * _clueRatio);
     final fitCell = wCell < hCell ? wCell : hCell;
 
     double cell;
@@ -73,8 +86,8 @@ class BoardMetrics {
       colGutter: maxColClue * clueSlot,
       maxRowClue: maxRowClue,
       maxColClue: maxColClue,
-      rows: puzzle.rows,
-      cols: puzzle.cols,
+      rows: rows,
+      cols: cols,
       needsZoom: needsZoom,
     );
   }

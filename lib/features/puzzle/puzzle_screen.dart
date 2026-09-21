@@ -499,6 +499,20 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
                       style: const TextStyle(fontWeight: FontWeight.w800)),
                 ],
               ),
+              if (state.earnedChestBonus > 0) ...[
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.inventory_2, color: AppTheme.accent),
+                    const SizedBox(width: 6),
+                    Text('Milestone chest: +${state.earnedChestBonus}!',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.accent)),
+                  ],
+                ),
+              ],
               const SizedBox(height: 16),
               Row(
                 children: [

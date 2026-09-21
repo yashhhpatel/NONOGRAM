@@ -19,6 +19,9 @@ class PlayerProfile {
   final Set<String> ownedThemes; // includes 'classic'
   final String selectedTheme;
 
+  // Completed colored-nonogram puzzle indices.
+  final Set<int> completedColor;
+
   // Monetization.
   final bool removeAds;
 
@@ -53,6 +56,7 @@ class PlayerProfile {
     required this.themeModeIndex,
     required this.ownedThemes,
     required this.selectedTheme,
+    required this.completedColor,
     required this.removeAds,
     required this.onboardingDone,
     required this.tutorialDone,
@@ -75,6 +79,7 @@ class PlayerProfile {
         themeModeIndex: 0,
         ownedThemes: {'classic'},
         selectedTheme: 'classic',
+        completedColor: {},
         removeAds: false,
         onboardingDone: false,
         tutorialDone: false,
@@ -105,6 +110,7 @@ class PlayerProfile {
     int? themeModeIndex,
     Set<String>? ownedThemes,
     String? selectedTheme,
+    Set<int>? completedColor,
     bool? removeAds,
     bool? onboardingDone,
     bool? tutorialDone,
@@ -126,6 +132,7 @@ class PlayerProfile {
       themeModeIndex: themeModeIndex ?? this.themeModeIndex,
       ownedThemes: ownedThemes ?? this.ownedThemes,
       selectedTheme: selectedTheme ?? this.selectedTheme,
+      completedColor: completedColor ?? this.completedColor,
       removeAds: removeAds ?? this.removeAds,
       onboardingDone: onboardingDone ?? this.onboardingDone,
       tutorialDone: tutorialDone ?? this.tutorialDone,
@@ -149,6 +156,7 @@ class PlayerProfile {
         'themeModeIndex': themeModeIndex,
         'ownedThemes': ownedThemes.toList(),
         'selectedTheme': selectedTheme,
+        'completedColor': completedColor.toList(),
         'removeAds': removeAds,
         'onboardingDone': onboardingDone,
         'tutorialDone': tutorialDone,
@@ -176,6 +184,8 @@ class PlayerProfile {
           (j['ownedThemes'] as List<dynamic>? ?? ['classic']).cast<String>().toSet()
             ..add('classic'),
       selectedTheme: j['selectedTheme'] as String? ?? 'classic',
+      completedColor:
+          (j['completedColor'] as List<dynamic>? ?? []).cast<int>().toSet(),
       removeAds: j['removeAds'] as bool? ?? false,
       onboardingDone: j['onboardingDone'] as bool? ?? false,
       tutorialDone: j['tutorialDone'] as bool? ?? false,
