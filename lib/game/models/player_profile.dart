@@ -18,6 +18,9 @@ class PlayerProfile {
   // Onboarding.
   final bool onboardingDone;
 
+  // Whether the in-game Level 1 tutorial has been shown.
+  final bool tutorialDone;
+
   // Per-level results.
   final Map<int, LevelProgress> levels;
 
@@ -39,6 +42,7 @@ class PlayerProfile {
     required this.autoCrossOn,
     required this.removeAds,
     required this.onboardingDone,
+    required this.tutorialDone,
     required this.levels,
     required this.completedDailyDates,
     required this.dailyStreak,
@@ -56,6 +60,7 @@ class PlayerProfile {
         autoCrossOn: true,
         removeAds: false,
         onboardingDone: false,
+        tutorialDone: false,
         levels: {},
         completedDailyDates: {},
         dailyStreak: 0,
@@ -81,6 +86,7 @@ class PlayerProfile {
     bool? autoCrossOn,
     bool? removeAds,
     bool? onboardingDone,
+    bool? tutorialDone,
     Map<int, LevelProgress>? levels,
     Set<String>? completedDailyDates,
     int? dailyStreak,
@@ -97,6 +103,7 @@ class PlayerProfile {
       autoCrossOn: autoCrossOn ?? this.autoCrossOn,
       removeAds: removeAds ?? this.removeAds,
       onboardingDone: onboardingDone ?? this.onboardingDone,
+      tutorialDone: tutorialDone ?? this.tutorialDone,
       levels: levels ?? this.levels,
       completedDailyDates: completedDailyDates ?? this.completedDailyDates,
       dailyStreak: dailyStreak ?? this.dailyStreak,
@@ -115,6 +122,7 @@ class PlayerProfile {
         'autoCrossOn': autoCrossOn,
         'removeAds': removeAds,
         'onboardingDone': onboardingDone,
+        'tutorialDone': tutorialDone,
         'levels': levels.values.map((lp) => lp.toJson()).toList(),
         'completedDailyDates': completedDailyDates.toList(),
         'dailyStreak': dailyStreak,
@@ -135,6 +143,7 @@ class PlayerProfile {
       autoCrossOn: j['autoCrossOn'] as bool? ?? true,
       removeAds: j['removeAds'] as bool? ?? false,
       onboardingDone: j['onboardingDone'] as bool? ?? false,
+      tutorialDone: j['tutorialDone'] as bool? ?? false,
       levels: {for (final lp in levelList) lp.levelId: lp},
       completedDailyDates:
           (j['completedDailyDates'] as List<dynamic>? ?? []).cast<String>().toSet(),

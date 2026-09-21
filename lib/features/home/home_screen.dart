@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/data/level_catalog.dart';
+import '../../game/util/date_key.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -26,6 +27,10 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   _CoinPill(coins: profile.coins),
                   const Spacer(),
+                  _GiftButton(
+                    available: profile.lastRewardClaimDate != DateKey.today(),
+                    onTap: () => context.push('/daily-reward'),
+                  ),
                   IconButton(
                     onPressed: () => context.push('/settings'),
                     icon: const Icon(Icons.settings_outlined),
@@ -128,6 +133,39 @@ class _Logo extends StatelessWidget {
             color: AppTheme.ink,
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _GiftButton extends StatelessWidget {
+  final bool available;
+  final VoidCallback onTap;
+  const _GiftButton({required this.available, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          onPressed: onTap,
+          icon: const Icon(Icons.card_giftcard_outlined),
+        ),
+        if (available)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: AppTheme.accent,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.surface, width: 1.5),
+              ),
+            ),
+          ),
       ],
     );
   }

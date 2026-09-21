@@ -1,6 +1,14 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'dart:io';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
@@ -11,6 +19,7 @@ import 'board_metrics.dart';
 import 'board_painter.dart';
 import 'game_controller.dart';
 import 'widgets/picture_preview.dart';
+import 'widgets/tutorial_overlay.dart';
 
 class PuzzleScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -93,6 +102,15 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
                 ),
               ],
             ),
+            if (widget.levelId == 1 &&
+                !profile.tutorialDone &&
+                !gameState.isComplete &&
+                !gameState.isGameOver)
+              PuzzleTutorialOverlay(
+                onFinish: () => ref
+                    .read(profileControllerProvider.notifier)
+                    .completeTutorial(),
+              ),
             if (gameState.isComplete)
               _CompleteOverlay(levelId: widget.levelId, state: gameState),
             if (gameState.isGameOver)
@@ -378,83 +396,196 @@ class _ToolToggle extends StatelessWidget {
   }
 }
 
-class _CompleteOverlay extends ConsumerWidget {
+class _CompleteOverlay extends ConsumerStatefulWidget {
   final int levelId;
   final GameState state;
   const _CompleteOverlay({required this.levelId, required this.state});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CompleteOverlay> createState() => _CompleteOverlayState();
+}
+
+class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
+    with TickerProviderStateMixin {
+  late final ConfettiController _confetti;
+  late final AnimationController _reveal;
+  final GlobalKey _shareKey = GlobalKey();
+  bool _sharing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _confetti = ConfettiController(duration: const Duration(seconds: 2));
+    _reveal = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    // Reveal the picture, then celebrate.
+    _reveal.forward();
+    _confetti.play();
+  }
+
+  @override
+  void dispose() {
+    _confetti.dispose();
+    _reveal.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    final levelId = widget.levelId;
     final hasNext =
         levelId < LevelCatalog.totalLevels && state.puzzle.category != 'Daily';
-    return _OverlayScaffold(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          PicturePreview(puzzle: state.puzzle, size: 140),
-          const SizedBox(height: 16),
-          const Text('Puzzle Complete!',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-          Text(
-              state.puzzle.category == 'Daily'
-                  ? state.puzzle.title
-                  : 'Level $levelId · ${state.puzzle.title}',
-              style: const TextStyle(color: AppTheme.inkSoft)),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+
+    return Stack(
+      children: [
+        _OverlayScaffold(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              for (var s = 0; s < 3; s++)
-                Icon(
-                  s < state.stars ? Icons.star : Icons.star_border,
-                  color: AppTheme.accent,
-                  size: 40,
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _statsRow(state),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.monetization_on, color: AppTheme.accent),
-              const SizedBox(width: 6),
-              Text('+${state.earnedCoins} coins',
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => context.go('/'),
-                  child: const Text('Home'),
+              // Captured for sharing (picture + title).
+              RepaintBoundary(
+                key: _shareKey,
+                child: Container(
+                  color: AppTheme.surface,
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedBuilder(
+                        animation: _reveal,
+                        builder: (context, _) => Transform.scale(
+                          scale: 0.6 + 0.4 * Curves.easeOutBack
+                              .transform(_reveal.value.clamp(0.0, 1.0)),
+                          child: PicturePreview(
+                            puzzle: state.puzzle,
+                            size: 140,
+                            revealProgress: _reveal.value,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(state.puzzle.title,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 16)),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () =>
-                      ref.read(gameControllerProvider(levelId).notifier).restart(),
-                  child: const Text('Replay'),
-                ),
+              const SizedBox(height: 14),
+              const Text('Puzzle Complete!',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+              Text(
+                  state.puzzle.category == 'Daily'
+                      ? 'Daily Challenge'
+                      : 'Level $levelId',
+                  style: const TextStyle(color: AppTheme.inkSoft)),
+              const SizedBox(height: 14),
+              _AnimatedStars(stars: state.stars),
+              const SizedBox(height: 12),
+              _statsRow(state),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.monetization_on, color: AppTheme.accent),
+                  const SizedBox(width: 6),
+                  Text('+${state.earnedCoins} coins',
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                ],
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton(
-                  onPressed: hasNext
-                      ? () => context.pushReplacement('/game/${levelId + 1}')
-                      : () => context.go('/'),
-                  child: Text(hasNext ? 'Next' : 'Done'),
-                ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _sharing ? null : _share,
+                      icon: const Icon(Icons.ios_share, size: 18),
+                      label: const Text('Share'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => ref
+                          .read(gameControllerProvider(levelId).notifier)
+                          .restart(),
+                      child: const Text('Replay'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => context.go('/'),
+                      child: const Text('Home'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: hasNext
+                          ? () =>
+                              context.pushReplacement('/game/${levelId + 1}')
+                          : () => context.go('/'),
+                      child: Text(hasNext ? 'Next' : 'Done'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        ),
+        // Confetti from the top center.
+        Align(
+          alignment: Alignment.topCenter,
+          child: ConfettiWidget(
+            confettiController: _confetti,
+            blastDirection: math.pi / 2,
+            emissionFrequency: 0.05,
+            numberOfParticles: 20,
+            maxBlastForce: 18,
+            minBlastForce: 8,
+            gravity: 0.25,
+            colors: const [
+              AppTheme.primary,
+              AppTheme.accent,
+              AppTheme.success,
+              Colors.amber,
+            ],
+          ),
+        ),
+      ],
     );
+  }
+
+  Future<void> _share() async {
+    setState(() => _sharing = true);
+    try {
+      final boundary = _shareKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final image = await boundary.toImage(pixelRatio: 3);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) return;
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/pixelcross_${widget.state.puzzle.id}.png');
+      await file.writeAsBytes(bytes.buffer.asUint8List());
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text:
+            'I solved "${widget.state.puzzle.title}" in Pixel Cross! Can you?',
+      );
+    } catch (_) {
+      // Sharing is best-effort; ignore failures.
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
   }
 
   Widget _statsRow(GameState s) {
@@ -479,6 +610,34 @@ class _CompleteOverlay extends ConsumerWidget {
               style: const TextStyle(color: AppTheme.inkSoft, fontSize: 12)),
         ],
       );
+}
+
+/// Stars that pop in one after another when the puzzle completes.
+class _AnimatedStars extends StatelessWidget {
+  final int stars;
+  const _AnimatedStars({required this.stars});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var i = 0; i < 3; i++)
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: Duration(milliseconds: 400 + i * 220),
+            curve: Curves.elasticOut,
+            builder: (context, v, child) =>
+                Transform.scale(scale: v.clamp(0.0, 1.4), child: child),
+            child: Icon(
+              i < stars ? Icons.star : Icons.star_border,
+              color: AppTheme.accent,
+              size: 42,
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class _GameOverOverlay extends ConsumerWidget {

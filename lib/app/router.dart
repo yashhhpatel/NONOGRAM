@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/daily/daily_challenge_screen.dart';
+import '../features/daily/daily_reward_screen.dart';
 import '../features/events/events_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/level_map/level_map_screen.dart';
@@ -37,6 +38,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(path: '/daily', builder: (_, __) => const DailyChallengeScreen()),
+      GoRoute(
+        path: '/daily-reward',
+        builder: (_, __) => const DailyRewardScreen(),
+      ),
       GoRoute(path: '/events', builder: (_, __) => const EventsScreen()),
       GoRoute(
         path: '/tournament',

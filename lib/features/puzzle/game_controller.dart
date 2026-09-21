@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
 import '../../core/audio/audio_service.dart';
+import '../../core/storage/storage_service.dart';
 import '../../game/data/level_catalog.dart';
 import '../../game/data/puzzle_repository.dart';
 import '../../game/util/date_key.dart';
@@ -14,6 +15,7 @@ import '../../game/engine/hint_engine.dart';
 import '../../game/engine/scoring_engine.dart';
 import '../../game/models/cell_state.dart';
 import '../../game/models/game_state.dart';
+import '../../game/models/in_progress_state.dart';
 import '../../game/models/puzzle.dart';
 
 /// Drives a single level: applies moves, enforces hearts, runs auto-cross,
@@ -21,16 +23,50 @@ import '../../game/models/puzzle.dart';
 class GameController extends StateNotifier<GameState> {
   final Ref _ref;
   final Puzzle _puzzle;
+  // Captured at construction so it stays usable inside dispose(), where reading
+  // providers off _ref is not allowed.
+  final StorageService _storage;
   Timer? _timer;
   bool _resultRecorded = false;
 
   GameController(this._ref, this._puzzle)
-      : super(GameState.initial(
+      : _storage = _ref.read(storageServiceProvider),
+        super(GameState.initial(
           _puzzle,
           autoCrossEnabled:
               _ref.read(profileControllerProvider).autoCrossOn,
         )) {
+    _restoreSavedProgress();
     _startTimer();
+  }
+
+  /// Restores an auto-saved board for this level, if one exists and matches the
+  /// current puzzle shape.
+  void _restoreSavedProgress() {
+    final saved = _storage.loadInProgress(_puzzle.id);
+    if (saved == null) return;
+    if (saved.grid.length != _puzzle.rows ||
+        saved.grid.first.length != _puzzle.cols) {
+      return;
+    }
+    state = state.copyWith(
+      playerGrid: saved.toCellGrid(),
+      hearts: saved.hearts,
+      mistakes: saved.mistakes,
+      hintsUsed: saved.hintsUsed,
+      elapsedSeconds: saved.elapsedSeconds,
+      autoCrossEnabled: saved.autoCross,
+      tool: GameTool.values[saved.tool],
+    );
+  }
+
+  void _persist() {
+    if (state.isComplete) return;
+    _storage.saveInProgress(InProgressState.fromGame(_puzzle.id, state));
+  }
+
+  void _clearSaved() {
+    _storage.clearInProgress(_puzzle.id);
   }
 
   AudioService get _audio => _ref.read(audioServiceProvider);
@@ -45,13 +81,20 @@ class GameController extends StateNotifier<GameState> {
     });
   }
 
-  void pauseTimer() => _timer?.cancel();
+  void pauseTimer() {
+    _timer?.cancel();
+    _persist();
+  }
+
   void resumeTimer() {
     if (state.isComplete || state.isGameOver) return;
     _startTimer();
   }
 
-  void setTool(GameTool tool) => state = state.copyWith(tool: tool);
+  void setTool(GameTool tool) {
+    state = state.copyWith(tool: tool);
+    _persist();
+  }
 
   void setAutoCross(bool enabled) {
     state = state.copyWith(autoCrossEnabled: enabled);
@@ -60,6 +103,7 @@ class GameController extends StateNotifier<GameState> {
       state = state.copyWith(playerGrid: crossed);
       _checkCompletion();
     }
+    _persist();
   }
 
   /// Handles a tap/drag on a cell using the current tool.
@@ -97,6 +141,7 @@ class GameController extends StateNotifier<GameState> {
       grid[r][c] = CellState.unknown;
       state = state.copyWith(playerGrid: grid, clearHighlight: true);
       _audio.play(GameSound.buttonTap, soundEnabled: _soundOn);
+      _persist();
       return;
     }
 
@@ -112,6 +157,7 @@ class GameController extends StateNotifier<GameState> {
       _ref.read(hapticsServiceProvider).cellSelect(_hapticsOn);
       _audio.play(GameSound.correct, soundEnabled: _soundOn);
       _checkCompletion();
+      _persist();
     } else {
       // Wrong fill: cost a heart, leave the cell untouched. Not undoable.
       final hearts = state.hearts - 1;
@@ -122,6 +168,7 @@ class GameController extends StateNotifier<GameState> {
       );
       _ref.read(hapticsServiceProvider).wrong(_hapticsOn);
       _audio.play(GameSound.wrong, soundEnabled: _soundOn);
+      _persist();
     }
   }
 
@@ -139,6 +186,7 @@ class GameController extends StateNotifier<GameState> {
     state = state.copyWith(playerGrid: grid, clearHighlight: true);
     _ref.read(hapticsServiceProvider).lightTap(_hapticsOn);
     _audio.play(GameSound.cross, soundEnabled: _soundOn);
+    _persist();
   }
 
   /// Reveals one correct cell. Consumes an inventory hint (from the profile).
@@ -169,6 +217,7 @@ class GameController extends StateNotifier<GameState> {
     _ref.read(hapticsServiceProvider).lightTap(_hapticsOn);
     _audio.play(GameSound.hint, soundEnabled: _soundOn);
     _checkCompletion();
+    _persist();
     return true;
   }
 
@@ -182,6 +231,7 @@ class GameController extends StateNotifier<GameState> {
       history: history,
       clearHighlight: true,
     );
+    _persist();
   }
 
   /// Restores hearts to full (e.g. after a rewarded ad or coin spend).
@@ -192,6 +242,7 @@ class GameController extends StateNotifier<GameState> {
 
   void restart() {
     _resultRecorded = false;
+    _clearSaved();
     state = GameState.initial(
       _puzzle,
       autoCrossEnabled: _ref.read(profileControllerProvider).autoCrossOn,
@@ -239,6 +290,9 @@ class GameController extends StateNotifier<GameState> {
     _ref.read(hapticsServiceProvider).complete(_hapticsOn);
     _audio.play(GameSound.complete, soundEnabled: _soundOn);
 
+    // A finished puzzle no longer needs an auto-saved board.
+    _clearSaved();
+
     if (!_resultRecorded) {
       _resultRecorded = true;
       final profile = _ref.read(profileControllerProvider.notifier);
@@ -261,6 +315,7 @@ class GameController extends StateNotifier<GameState> {
   @override
   void dispose() {
     _timer?.cancel();
+    _persist();
     super.dispose();
   }
 }

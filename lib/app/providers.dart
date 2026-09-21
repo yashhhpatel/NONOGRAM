@@ -56,6 +56,9 @@ class ProfileController extends StateNotifier<PlayerProfile> {
   void completeOnboarding() =>
       _commit(state.copyWith(onboardingDone: true));
 
+  void completeTutorial() =>
+      _commit(state.copyWith(tutorialDone: true));
+
   void addCoins(int amount) =>
       _commit(state.copyWith(coins: state.coins + amount));
 
