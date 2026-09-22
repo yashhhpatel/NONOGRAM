@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
-import '../../core/billing/billing_service.dart';
 
 const String _privacyPolicyUrl =
     'https://api.buildprivacypolicy.com/policy/62e76d2f-5b52-4b4f-928b-273e3098f3c1';
@@ -73,18 +73,17 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           _section('Purchases'),
-          if (profile.removeAds)
-            const ListTile(
-              leading: Icon(Icons.verified, color: AppTheme.success),
-              title: Text('Lifetime Ads-Free'),
-              subtitle: Text('Purchased — thank you!'),
-            )
-          else
-            _LifetimeAdsFreeTile(onBuy: () => _buyLifetime(context, ref)),
           ListTile(
-            leading: const Icon(Icons.restore),
-            title: const Text('Restore Purchases'),
-            onTap: () => _restore(context, ref),
+            leading: Icon(
+              profile.removeAds ? Icons.verified : Icons.block,
+              color: profile.removeAds ? AppTheme.success : AppTheme.primary,
+            ),
+            title: const Text('Remove Ads'),
+            subtitle: Text(profile.removeAds
+                ? 'Lifetime Ads-Free is active'
+                : 'Lifetime Ads-Free — one-time purchase'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/remove-ads'),
           ),
           _section('About'),
           ListTile(
@@ -170,36 +169,6 @@ class SettingsScreen extends ConsumerWidget {
     ref.read(profileControllerProvider.notifier).setDailyReminder(on);
   }
 
-  Future<void> _buyLifetime(BuildContext context, WidgetRef ref) async {
-    final outcome = await ref.read(billingServiceProvider).buyRemoveAds();
-    if (!context.mounted) return;
-    // A successful purchase is confirmed asynchronously on the billing stream,
-    // which grants the entitlement and flips the tile to "Purchased".
-    final msg = switch (outcome) {
-      PurchaseOutcome.pending => 'Opening Google Play checkout…',
-      PurchaseOutcome.unavailable =>
-        'Google Play Billing is unavailable on this device.',
-      _ => 'Could not start the purchase. Please try again.',
-    };
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  Future<void> _restore(BuildContext context, WidgetRef ref) async {
-    final outcome = await ref.read(billingServiceProvider).restorePurchases();
-    if (!context.mounted) return;
-    // Restored ownership is delivered on the billing stream and grants the
-    // entitlement automatically; here we just acknowledge the request.
-    final msg = switch (outcome) {
-      PurchaseOutcome.pending => 'Checking for previous purchases…',
-      PurchaseOutcome.unavailable =>
-        'Google Play Billing is unavailable on this device.',
-      _ => 'Could not restore purchases.',
-    };
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
-  }
-
   Future<void> _openUrl(BuildContext context, String url) async {
     final ok = await launchUrl(
       Uri.parse(url),
@@ -249,26 +218,6 @@ class SettingsScreen extends ConsumerWidget {
             child: const Text('Reset'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// The single lifetime Remove Ads purchase option, shown only in Settings.
-class _LifetimeAdsFreeTile extends ConsumerWidget {
-  final VoidCallback onBuy;
-  const _LifetimeAdsFreeTile({required this.onBuy});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final price = ref.watch(billingServiceProvider).displayPrice;
-    return ListTile(
-      leading: const Icon(Icons.block, color: AppTheme.primary),
-      title: const Text('Lifetime Ads-Free'),
-      subtitle: const Text('One-time purchase · removes all ads forever'),
-      trailing: FilledButton(
-        onPressed: onBuy,
-        child: Text(price),
       ),
     );
   }

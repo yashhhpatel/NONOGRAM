@@ -12,6 +12,7 @@ import '../features/level_map/level_map_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/puzzle/puzzle_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/store/remove_ads_screen.dart';
 import '../features/store/store_screen.dart';
 import '../features/tournament/tournament_screen.dart';
 import 'providers.dart';
@@ -64,6 +65,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
       GoRoute(path: '/store', builder: (_, __) => const StoreScreen()),
+      GoRoute(
+        path: '/remove-ads',
+        builder: (_, __) => const RemoveAdsScreen(),
+      ),
     ],
   );
 });

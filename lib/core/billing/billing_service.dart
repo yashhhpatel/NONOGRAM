@@ -32,6 +32,8 @@ class BillingService {
 
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _sub;
+  final StreamController<PurchaseOutcome> _outcomes =
+      StreamController<PurchaseOutcome>.broadcast();
 
   bool _available = false;
   ProductDetails? _product;
@@ -39,9 +41,9 @@ class BillingService {
   /// Called when the lifetime entitlement is confirmed (purchase or restore).
   void Function()? onEntitlementGranted;
 
-  /// Optional hook so the UI can react to pending/cancelled/error updates that
-  /// arrive asynchronously on the stream.
-  void Function(PurchaseOutcome outcome)? onPurchaseUpdate;
+  /// Asynchronous purchase/restore outcomes delivered on the billing stream, so
+  /// the UI can react to pending / cancelled / failed / restored states.
+  Stream<PurchaseOutcome> get outcomes => _outcomes.stream;
 
   bool get isStoreAvailable => _available;
 
@@ -107,22 +109,22 @@ class BillingService {
 
       switch (purchase.status) {
         case PurchaseStatus.pending:
-          onPurchaseUpdate?.call(PurchaseOutcome.pending);
+          _emit(PurchaseOutcome.pending);
           break;
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
+          // The Play client only surfaces verified purchases here; we
+          // acknowledge (complete) below before granting entitlement.
           onEntitlementGranted?.call();
-          onPurchaseUpdate?.call(
-            purchase.status == PurchaseStatus.restored
-                ? PurchaseOutcome.restored
-                : PurchaseOutcome.purchased,
-          );
+          _emit(purchase.status == PurchaseStatus.restored
+              ? PurchaseOutcome.restored
+              : PurchaseOutcome.purchased);
           break;
         case PurchaseStatus.error:
-          onPurchaseUpdate?.call(PurchaseOutcome.error);
+          _emit(PurchaseOutcome.error);
           break;
         case PurchaseStatus.canceled:
-          onPurchaseUpdate?.call(PurchaseOutcome.cancelled);
+          _emit(PurchaseOutcome.cancelled);
           break;
       }
 
@@ -132,7 +134,12 @@ class BillingService {
     }
   }
 
+  void _emit(PurchaseOutcome outcome) {
+    if (!_outcomes.isClosed) _outcomes.add(outcome);
+  }
+
   void dispose() {
     _sub?.cancel();
+    _outcomes.close();
   }
 }
