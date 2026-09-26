@@ -13,6 +13,10 @@ class BoardPainter extends CustomPainter {
   final BoardMetrics m;
   final ({int r, int c})? highlight;
   final Color fillColor;
+
+  /// Cells currently playing the fill "pop" animation, and its 0..1 progress.
+  final Set<({int r, int c})> popCells;
+  final double popValue;
   final bool solvedRowsColsHint;
 
   BoardPainter({
@@ -21,8 +25,17 @@ class BoardPainter extends CustomPainter {
     required this.m,
     required this.highlight,
     required this.fillColor,
+    this.popCells = const {},
+    this.popValue = 1.0,
     this.solvedRowsColsHint = false,
   });
+
+  double _scaleFor(int r, int c) {
+    if (popCells.isEmpty || !popCells.contains((r: r, c: c))) return 1.0;
+    // Ease-out-back-ish: pop up past 1 then settle.
+    final t = popValue.clamp(0.0, 1.0);
+    return 0.5 + 0.6 * t - 0.1 * (t * t);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -51,14 +64,14 @@ class BoardPainter extends CustomPainter {
         final left = m.rowGutter + c * m.cellSize;
         final top = m.colGutter + r * m.cellSize;
         if (state == CellState.filled) {
-          final inset = m.cellSize * 0.06;
+          final scale = _scaleFor(r, c);
+          final baseInset = m.cellSize * 0.06;
+          final extra = m.cellSize * (1 - scale) / 2;
+          final inset = baseInset + extra;
+          final side = m.cellSize - inset * 2;
+          if (side <= 0) continue;
           final rrect = RRect.fromRectAndRadius(
-            Rect.fromLTWH(
-              left + inset,
-              top + inset,
-              m.cellSize - inset * 2,
-              m.cellSize - inset * 2,
-            ),
+            Rect.fromLTWH(left + inset, top + inset, side, side),
             Radius.circular(m.cellSize * 0.14),
           );
           canvas.drawRRect(rrect, fill);
@@ -201,6 +214,8 @@ class BoardPainter extends CustomPainter {
     return oldDelegate.grid != grid ||
         oldDelegate.highlight != highlight ||
         oldDelegate.fillColor != fillColor ||
+        oldDelegate.popValue != popValue ||
+        oldDelegate.popCells != popCells ||
         oldDelegate.m.cellSize != m.cellSize;
   }
 }

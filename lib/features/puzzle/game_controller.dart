@@ -235,6 +235,24 @@ class GameController extends StateNotifier<GameState> {
     _persist();
   }
 
+  /// Upgrades a completed result to the full 3 stars (e.g. after a rewarded
+  /// ad). Persists the improved star count via the normal best-merge path.
+  void upgradeToThreeStars() {
+    if (!state.isComplete || state.stars >= 3) return;
+    state = state.copyWith(stars: 3);
+    if (!PuzzleRepository.isDailyId(_puzzle.id)) {
+      _ref.read(profileControllerProvider.notifier).recordLevelResult(
+            levelId: _puzzle.id,
+            stars: 3,
+            timeSeconds: state.elapsedSeconds,
+            mistakes: state.mistakes,
+            hintsUsed: state.hintsUsed,
+            coinsAwarded: 0,
+            totalLevels: LevelCatalog.totalLevels,
+          );
+    }
+  }
+
   /// Restores hearts to full (e.g. after a rewarded ad or coin spend).
   void restoreHearts() {
     state = state.copyWith(hearts: state.maxHearts);

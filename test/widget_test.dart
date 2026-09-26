@@ -108,7 +108,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Skip'), findsOneWidget);
     await tester.tap(find.text('Skip'));
-    await tester.pumpAndSettle();
+    // Home has a continuous ambient animation, so pump fixed frames rather
+    // than pumpAndSettle (which never settles on repeating animations).
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     // Home screen CTA.
     expect(find.text('START PLAYING'), findsOneWidget);
   });

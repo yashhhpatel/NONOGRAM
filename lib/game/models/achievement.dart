@@ -49,6 +49,14 @@ class Achievements {
       progress: (p) => p.completedCount,
       goal: 10,
     ),
+    const Achievement(
+      id: 'perfect_solve',
+      title: 'Flawless',
+      description: 'Finish a puzzle with a perfect 3-star run',
+      icon: Icons.auto_awesome,
+      progress: _threeStarCount,
+      goal: 1,
+    ),
     Achievement(
       id: 'fifty_levels',
       title: 'Puzzle Enthusiast',

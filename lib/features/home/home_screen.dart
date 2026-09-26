@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/data/level_catalog.dart';
 import '../../game/util/date_key.dart';
+import 'widgets/puzzle_reveal_background.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -16,10 +17,16 @@ class HomeScreen extends ConsumerWidget {
     final current = profile.highestUnlocked;
     final hasProgress = profile.completedCount > 0;
     final info = LevelCatalog.infoFor(current);
+    final resuming =
+        ref.read(storageServiceProvider).loadInProgress(current) != null;
+    final dailyDone = profile.completedDailyDates.contains(DateKey.today());
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Stack(
+          children: [
+            const Positioned.fill(child: PuzzleRevealBackground()),
+            SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: ConstrainedBox(
             constraints: BoxConstraints(
@@ -59,6 +66,7 @@ class HomeScreen extends ConsumerWidget {
                   category: info.category,
                   size: info.size,
                   hasProgress: hasProgress,
+                  resuming: resuming,
                   onTap: () => context.push('/game/$current'),
                 ),
                 const SizedBox(height: 12),
@@ -72,6 +80,11 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                   label: const Text('Level Map'),
+                ),
+                const SizedBox(height: 12),
+                _DailyPuzzleCard(
+                  done: dailyDone,
+                  onTap: () => context.push('/daily'),
                 ),
                 const SizedBox(height: 12),
                 _ColorPicrossBanner(onTap: () => context.push('/color')),
@@ -114,6 +127,8 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ),
+          ],
+        ),
       ),
     );
   }
@@ -124,6 +139,7 @@ class _ContinueHero extends StatelessWidget {
   final String category;
   final int size;
   final bool hasProgress;
+  final bool resuming;
   final VoidCallback onTap;
 
   const _ContinueHero({
@@ -131,6 +147,7 @@ class _ContinueHero extends StatelessWidget {
     required this.category,
     required this.size,
     required this.hasProgress,
+    required this.resuming,
     required this.onTap,
   });
 
@@ -162,7 +179,9 @@ class _ContinueHero extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    hasProgress ? 'CONTINUE' : 'START PLAYING',
+                    resuming
+                        ? 'RESUME'
+                        : (hasProgress ? 'CONTINUE' : 'START PLAYING'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -172,7 +191,9 @@ class _ContinueHero extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Level $levelId · $category',
+                    resuming
+                        ? 'Level $levelId · pick up where you left off'
+                        : 'Level $levelId · $category',
                     style: const TextStyle(color: Colors.white, fontSize: 14),
                   ),
                   Text(
@@ -223,6 +244,63 @@ class _DecoPatternPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DecoPatternPainter old) => old.seed != seed;
+}
+
+class _DailyPuzzleCard extends StatelessWidget {
+  final bool done;
+  final VoidCallback onTap;
+  const _DailyPuzzleCard({required this.done, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: done ? AppTheme.success : const Color(0xFF00897B),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (done ? AppTheme.success : const Color(0xFF00897B))
+                    .withOpacity(0.14),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                done ? Icons.check_circle : Icons.today,
+                color: done ? AppTheme.success : const Color(0xFF00897B),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Daily Puzzle',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: AppTheme.ink)),
+                  Text(
+                    done ? 'Completed today · come back tomorrow' : 'Play today’s challenge',
+                    style: TextStyle(color: AppTheme.inkSoft, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: AppTheme.inkSoft),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ColorPicrossBanner extends StatelessWidget {

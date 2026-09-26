@@ -14,6 +14,7 @@ import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/data/level_catalog.dart';
 import '../../game/models/board_theme.dart';
+import '../../game/models/cell_state.dart';
 import '../../game/models/game_state.dart';
 import '../../game/models/puzzle.dart';
 import 'board_metrics.dart';
@@ -31,9 +32,18 @@ class PuzzleScreen extends ConsumerStatefulWidget {
 }
 
 class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   BoardMetrics? _metrics;
   ({int r, int c})? _lastPainted;
+
+  late final AnimationController _pop = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 160));
+  late final AnimationController _shake = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 320));
+  Set<({int r, int c})> _popCells = {};
+
+  bool get _motion =>
+      !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
 
   GameController get _controller =>
       ref.read(gameControllerProvider(widget.levelId).notifier);
@@ -46,8 +56,33 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
 
   @override
   void dispose() {
+    _pop.dispose();
+    _shake.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// Detects newly-filled cells (for the pop animation) and mistakes (for the
+  /// shake) between consecutive game states.
+  void _onStateChange(GameState? prev, GameState next) {
+    if (prev == null || !_motion) return;
+    if (next.mistakes > prev.mistakes) {
+      _shake.forward(from: 0);
+    }
+    final added = <({int r, int c})>{};
+    for (var r = 0; r < next.puzzle.rows; r++) {
+      for (var c = 0; c < next.puzzle.cols; c++) {
+        final now = next.playerGrid[r][c];
+        final was = prev.playerGrid[r][c];
+        if (now != was && now != CellState.unknown) {
+          added.add((r: r, c: c));
+        }
+      }
+    }
+    if (added.isNotEmpty) {
+      _popCells = added;
+      _pop.forward(from: 0);
+    }
   }
 
   @override
@@ -82,6 +117,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(gameControllerProvider(widget.levelId), _onStateChange);
     final gameState = ref.watch(gameControllerProvider(widget.levelId));
     final puzzle = gameState.puzzle;
     final profile = ref.watch(profileControllerProvider);
@@ -153,14 +189,32 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
             },
             onPanUpdate: (d) => _onPan(d.localPosition, state.tool),
             onPanEnd: (_) => _lastPainted = null,
-            child: CustomPaint(
-              painter: BoardPainter(
-                puzzle: puzzle,
-                grid: state.playerGrid,
-                m: metrics,
-                highlight: state.highlight,
-                fillColor: fillColor,
-              ),
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_pop, _shake]),
+              builder: (context, _) {
+                // Subtle horizontal shake on a wrong tap; a parent transform
+                // does not affect the gesture's local coordinates, so touch
+                // mapping stays exact.
+                final dx = _shake.isAnimating
+                    ? (1 - _shake.value) *
+                        6 *
+                        math.sin(_shake.value * math.pi * 5)
+                    : 0.0;
+                return Transform.translate(
+                  offset: Offset(dx, 0),
+                  child: CustomPaint(
+                    painter: BoardPainter(
+                      puzzle: puzzle,
+                      grid: state.playerGrid,
+                      m: metrics,
+                      highlight: state.highlight,
+                      fillColor: fillColor,
+                      popCells: _pop.isAnimating ? _popCells : const {},
+                      popValue: _pop.value,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         );
@@ -513,6 +567,19 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
                   ],
                 ),
               ],
+              if (state.stars < 3) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.accent),
+                    onPressed: () => _watchAdForStars(context, ref, levelId),
+                    icon: const Icon(Icons.play_circle_outline, size: 18),
+                    label: const Text('Watch Ad → 3★'),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -579,6 +646,19 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
         ),
       ],
     );
+  }
+
+  Future<void> _watchAdForStars(
+      BuildContext context, WidgetRef ref, int levelId) async {
+    final granted = await ref.read(adManagerProvider).showRewarded();
+    if (!context.mounted) return;
+    if (granted) {
+      ref.read(gameControllerProvider(levelId).notifier).upgradeToThreeStars();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No ad available right now.')),
+      );
+    }
   }
 
   Future<void> _share() async {
