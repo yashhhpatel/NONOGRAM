@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../app/theme.dart';
@@ -14,9 +16,21 @@ class BoardPainter extends CustomPainter {
   final ({int r, int c})? highlight;
   final Color fillColor;
 
-  /// Cells currently playing the fill "pop" animation, and its 0..1 progress.
+  /// Cells currently playing the fill/mark "pop" animation, and its 0..1
+  /// progress (scale-in plus a brief success glow for filled cells).
   final Set<({int r, int c})> popCells;
   final double popValue;
+
+  /// Rows/columns that just became fully satisfied, and a shared 0..1
+  /// progress for their one-shot completion glow (peaks mid-animation).
+  final Set<int> glowingRows;
+  final Set<int> glowingCols;
+  final double lineGlowValue;
+
+  /// 0..1 entrance progress: staggers the clue numbers in and fades/scales
+  /// the grid in when a level first opens. 1.0 = fully settled (default).
+  final double entrance;
+
   final bool solvedRowsColsHint;
 
   BoardPainter({
@@ -27,6 +41,10 @@ class BoardPainter extends CustomPainter {
     required this.fillColor,
     this.popCells = const {},
     this.popValue = 1.0,
+    this.glowingRows = const {},
+    this.glowingCols = const {},
+    this.lineGlowValue = 0.0,
+    this.entrance = 1.0,
     this.solvedRowsColsHint = false,
   });
 
@@ -37,13 +55,34 @@ class BoardPainter extends CustomPainter {
     return 0.5 + 0.6 * t - 0.1 * (t * t);
   }
 
+  /// Brief success glow behind a cell that was *just* correctly filled.
+  double _glowFor(int r, int c) {
+    if (popCells.isEmpty || !popCells.contains((r: r, c: c))) return 0.0;
+    if (grid[r][c] != CellState.filled) return 0.0;
+    // Fades out over the pop's lifetime.
+    return (1.0 - popValue.clamp(0.0, 1.0));
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
+    final e = entrance.clamp(0.0, 1.0);
+    canvas.save();
+    if (e < 1.0) {
+      // Scale the whole board slightly up from the center while fading in.
+      final cx = m.rowGutter + m.cols * m.cellSize / 2;
+      final cy = m.colGutter + m.rows * m.cellSize / 2;
+      final scale = 0.94 + 0.06 * Curves.easeOutCubic.transform(e);
+      canvas.translate(cx, cy);
+      canvas.scale(scale);
+      canvas.translate(-cx, -cy);
+    }
     _paintGridBackground(canvas);
+    _paintLineGlow(canvas);
     _paintCells(canvas);
     _paintGridLines(canvas);
-    _paintClues(canvas);
+    _paintClues(canvas, e);
     _paintHighlight(canvas);
+    canvas.restore();
   }
 
   void _paintGridBackground(Canvas canvas) {
@@ -64,6 +103,20 @@ class BoardPainter extends CustomPainter {
         final left = m.rowGutter + c * m.cellSize;
         final top = m.colGutter + r * m.cellSize;
         if (state == CellState.filled) {
+          final glow = _glowFor(r, c);
+          if (glow > 0) {
+            final glowPaint = Paint()
+              ..color = AppTheme.success.withOpacity(0.55 * glow)
+              ..maskFilter = MaskFilter.blur(
+                BlurStyle.normal,
+                m.cellSize * 0.35,
+              );
+            canvas.drawCircle(
+              Offset(left + m.cellSize / 2, top + m.cellSize / 2),
+              m.cellSize * 0.62,
+              glowPaint,
+            );
+          }
           final scale = _scaleFor(r, c);
           final baseInset = m.cellSize * 0.06;
           final extra = m.cellSize * (1 - scale) / 2;
@@ -76,28 +129,61 @@ class BoardPainter extends CustomPainter {
           );
           canvas.drawRRect(rrect, fill);
         } else if (state == CellState.empty) {
-          _paintCross(canvas, left, top);
+          _paintCross(canvas, left, top, _scaleFor(r, c));
         }
       }
     }
   }
 
-  void _paintCross(Canvas canvas, double left, double top) {
+  void _paintCross(Canvas canvas, double left, double top, double scale) {
     final p = Paint()
       ..color = AppTheme.crossed
       ..strokeWidth = (m.cellSize * 0.08).clamp(1.5, 3.0)
       ..strokeCap = StrokeCap.round;
-    final pad = m.cellSize * 0.3;
+    final cx = left + m.cellSize / 2;
+    final cy = top + m.cellSize / 2;
+    final pad = m.cellSize * 0.3 + m.cellSize * 0.2 * (1 - scale);
     canvas.drawLine(
-      Offset(left + pad, top + pad),
-      Offset(left + m.cellSize - pad, top + m.cellSize - pad),
+      Offset(cx - (m.cellSize / 2 - pad), cy - (m.cellSize / 2 - pad)),
+      Offset(cx + (m.cellSize / 2 - pad), cy + (m.cellSize / 2 - pad)),
       p,
     );
     canvas.drawLine(
-      Offset(left + m.cellSize - pad, top + pad),
-      Offset(left + pad, top + m.cellSize - pad),
+      Offset(cx + (m.cellSize / 2 - pad), cy - (m.cellSize / 2 - pad)),
+      Offset(cx - (m.cellSize / 2 - pad), cy + (m.cellSize / 2 - pad)),
       p,
     );
+  }
+
+  void _paintLineGlow(Canvas canvas) {
+    if ((glowingRows.isEmpty && glowingCols.isEmpty) || lineGlowValue <= 0) {
+      return;
+    }
+    final opacity = math.sin((lineGlowValue.clamp(0.0, 1.0)) * math.pi);
+    if (opacity <= 0) return;
+    final paint = Paint()..color = AppTheme.success.withOpacity(0.16 * opacity);
+    for (final r in glowingRows) {
+      canvas.drawRect(
+        Rect.fromLTWH(
+          m.rowGutter,
+          m.colGutter + r * m.cellSize,
+          m.cols * m.cellSize,
+          m.cellSize,
+        ),
+        paint,
+      );
+    }
+    for (final c in glowingCols) {
+      canvas.drawRect(
+        Rect.fromLTWH(
+          m.rowGutter + c * m.cellSize,
+          m.colGutter,
+          m.cellSize,
+          m.rows * m.cellSize,
+        ),
+        paint,
+      );
+    }
   }
 
   void _paintGridLines(Canvas canvas) {
@@ -133,19 +219,25 @@ class BoardPainter extends CustomPainter {
     }
   }
 
-  void _paintClues(Canvas canvas) {
+  void _paintClues(Canvas canvas, double entranceProgress) {
     final fontSize = (m.clueSlot * 0.62).clamp(9.0, 22.0);
-    final style = TextStyle(
-      color: AppTheme.ink,
-      fontSize: fontSize,
-      fontWeight: FontWeight.w700,
-    );
+    final staggered = entranceProgress < 1.0;
+    final maxIndex = (m.rows + m.cols).clamp(1, 1 << 30);
 
     // Row clues (left gutter), right-aligned to the grid edge.
     for (var r = 0; r < m.rows; r++) {
       final clue = puzzle.rowClues[r];
       if (clue.length == 1 && clue.first == 0) continue;
       final top = m.colGutter + r * m.cellSize;
+      final opacity = staggered
+          ? _staggerOpacity(r, maxIndex, entranceProgress)
+          : 1.0;
+      if (opacity <= 0) continue;
+      final style = TextStyle(
+        color: AppTheme.ink.withOpacity(opacity),
+        fontSize: fontSize,
+        fontWeight: FontWeight.w700,
+      );
       for (var i = 0; i < clue.length; i++) {
         // Place from the right edge of the gutter backwards.
         final slotFromRight = clue.length - i;
@@ -164,6 +256,15 @@ class BoardPainter extends CustomPainter {
       final clue = puzzle.columnClues[c];
       if (clue.length == 1 && clue.first == 0) continue;
       final left = m.rowGutter + c * m.cellSize;
+      final opacity = staggered
+          ? _staggerOpacity(m.rows + c, maxIndex, entranceProgress)
+          : 1.0;
+      if (opacity <= 0) continue;
+      final style = TextStyle(
+        color: AppTheme.ink.withOpacity(opacity),
+        fontSize: fontSize,
+        fontWeight: FontWeight.w700,
+      );
       for (var i = 0; i < clue.length; i++) {
         final slotFromBottom = clue.length - i;
         final y = m.colGutter - slotFromBottom * m.clueSlot;
@@ -175,6 +276,16 @@ class BoardPainter extends CustomPainter {
         );
       }
     }
+  }
+
+  /// Staggers clue opacity by index so clues sweep in rather than popping
+  /// in all at once. Each clue gets its own short opacity ramp within the
+  /// overall entrance window.
+  double _staggerOpacity(int index, int count, double progress) {
+    const window = 0.55; // fraction of the entrance each clue ramps over
+    final start = (index / count) * (1 - window);
+    final local = ((progress - start) / window).clamp(0.0, 1.0);
+    return Curves.easeOut.transform(local);
   }
 
   void _drawCenteredText(
@@ -216,6 +327,10 @@ class BoardPainter extends CustomPainter {
         oldDelegate.fillColor != fillColor ||
         oldDelegate.popValue != popValue ||
         oldDelegate.popCells != popCells ||
+        oldDelegate.glowingRows != glowingRows ||
+        oldDelegate.glowingCols != glowingCols ||
+        oldDelegate.lineGlowValue != lineGlowValue ||
+        oldDelegate.entrance != entrance ||
         oldDelegate.m.cellSize != m.cellSize;
   }
 }

@@ -49,20 +49,24 @@ class _PreviewPainter extends CustomPainter {
     final offY = (size.height - s * puzzle.rows) / 2;
     final paint = Paint()..color = AppTheme.filled;
 
-    final totalFilled = puzzle.filledCount;
-    final toDraw = (totalFilled * progress).ceil();
-    var drawn = 0;
-
+    // Diagonal "wave" reveal order (top-left outward) rather than raster
+    // order, purely for a nicer sweep on the Level Complete screen.
+    final cells = <({int r, int c})>[];
     for (var r = 0; r < puzzle.rows; r++) {
       for (var c = 0; c < puzzle.cols; c++) {
-        if (!puzzle.solutionAt(r, c)) continue;
-        if (drawn >= toDraw) return;
-        drawn++;
-        canvas.drawRect(
-          Rect.fromLTWH(offX + c * s, offY + r * s, s + 0.5, s + 0.5),
-          paint,
-        );
+        if (puzzle.solutionAt(r, c)) cells.add((r: r, c: c));
       }
+    }
+    cells.sort((a, b) => (a.r + a.c).compareTo(b.r + b.c));
+
+    final toDraw = (cells.length * progress).ceil();
+    for (var i = 0; i < toDraw && i < cells.length; i++) {
+      final cellPos = cells[i];
+      canvas.drawRect(
+        Rect.fromLTWH(offX + cellPos.c * s, offY + cellPos.r * s, s + 0.5,
+            s + 0.5),
+        paint,
+      );
     }
   }
 

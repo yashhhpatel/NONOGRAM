@@ -13,6 +13,7 @@ import 'dart:io';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/data/level_catalog.dart';
+import '../../game/engine/auto_cross_engine.dart';
 import '../../game/models/board_theme.dart';
 import '../../game/models/cell_state.dart';
 import '../../game/models/game_state.dart';
@@ -21,6 +22,7 @@ import 'board_metrics.dart';
 import 'board_painter.dart';
 import 'game_controller.dart';
 import 'widgets/picture_preview.dart';
+import 'widgets/pressable_scale.dart';
 import 'widgets/tutorial_overlay.dart';
 
 class PuzzleScreen extends ConsumerStatefulWidget {
@@ -40,7 +42,14 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
       vsync: this, duration: const Duration(milliseconds: 160));
   late final AnimationController _shake = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 320));
+  late final AnimationController _entrance = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 560));
+  late final AnimationController _lineGlow = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 700));
   Set<({int r, int c})> _popCells = {};
+  Set<int> _glowingRows = {};
+  Set<int> _glowingCols = {};
+  bool _entranceStarted = false;
 
   bool get _motion =>
       !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
@@ -55,15 +64,30 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_entranceStarted) return;
+    _entranceStarted = true;
+    if (_motion) {
+      _entrance.forward();
+    } else {
+      _entrance.value = 1.0;
+    }
+  }
+
+  @override
   void dispose() {
     _pop.dispose();
     _shake.dispose();
+    _entrance.dispose();
+    _lineGlow.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  /// Detects newly-filled cells (for the pop animation) and mistakes (for the
-  /// shake) between consecutive game states.
+  /// Detects newly-filled cells (for the pop animation), mistakes (for the
+  /// shake), and newly-completed rows/columns (for the line glow) between
+  /// consecutive game states.
   void _onStateChange(GameState? prev, GameState next) {
     if (prev == null || !_motion) return;
     if (next.mistakes > prev.mistakes) {
@@ -82,6 +106,26 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
     if (added.isNotEmpty) {
       _popCells = added;
       _pop.forward(from: 0);
+
+      final rows = <int>{};
+      final cols = <int>{};
+      for (final cell in added) {
+        if (AutoCrossEngine.isRowSolved(next.puzzle, next.playerGrid, cell.r) &&
+            !AutoCrossEngine.isRowSolved(prev.puzzle, prev.playerGrid, cell.r)) {
+          rows.add(cell.r);
+        }
+        if (AutoCrossEngine.isColumnSolved(
+                next.puzzle, next.playerGrid, cell.c) &&
+            !AutoCrossEngine.isColumnSolved(
+                prev.puzzle, prev.playerGrid, cell.c)) {
+          cols.add(cell.c);
+        }
+      }
+      if (rows.isNotEmpty || cols.isNotEmpty) {
+        _glowingRows = rows;
+        _glowingCols = cols;
+        _lineGlow.forward(from: 0);
+      }
     }
   }
 
@@ -190,7 +234,8 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
             onPanUpdate: (d) => _onPan(d.localPosition, state.tool),
             onPanEnd: (_) => _lastPainted = null,
             child: AnimatedBuilder(
-              animation: Listenable.merge([_pop, _shake]),
+              animation:
+                  Listenable.merge([_pop, _shake, _entrance, _lineGlow]),
               builder: (context, _) {
                 // Subtle horizontal shake on a wrong tap; a parent transform
                 // does not affect the gesture's local coordinates, so touch
@@ -202,15 +247,24 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
                     : 0.0;
                 return Transform.translate(
                   offset: Offset(dx, 0),
-                  child: CustomPaint(
-                    painter: BoardPainter(
-                      puzzle: puzzle,
-                      grid: state.playerGrid,
-                      m: metrics,
-                      highlight: state.highlight,
-                      fillColor: fillColor,
-                      popCells: _pop.isAnimating ? _popCells : const {},
-                      popValue: _pop.value,
+                  child: Opacity(
+                    opacity: _entrance.value.clamp(0.0, 1.0),
+                    child: CustomPaint(
+                      painter: BoardPainter(
+                        puzzle: puzzle,
+                        grid: state.playerGrid,
+                        m: metrics,
+                        highlight: state.highlight,
+                        fillColor: fillColor,
+                        popCells: _pop.isAnimating ? _popCells : const {},
+                        popValue: _pop.value,
+                        glowingRows:
+                            _lineGlow.isAnimating ? _glowingRows : const {},
+                        glowingCols:
+                            _lineGlow.isAnimating ? _glowingCols : const {},
+                        lineGlowValue: _lineGlow.value,
+                        entrance: _entrance.value,
+                      ),
                     ),
                   ),
                 );
@@ -374,25 +428,32 @@ class _ControlButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Opacity(
       opacity: enabled ? 1 : 0.4,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppTheme.card,
+      child: PressableScale(
+        enabled: enabled,
+        child: Material(
+          color: AppTheme.card,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: enabled ? onTap : null,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppTheme.line),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 20, color: AppTheme.ink),
-              const SizedBox(width: 5),
-              Text(label,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600, color: AppTheme.ink)),
-            ],
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.line),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 20, color: AppTheme.ink),
+                  const SizedBox(width: 5),
+                  Text(label,
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600, color: AppTheme.ink)),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -409,27 +470,31 @@ class _ToolToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget seg(GameTool t, IconData icon, String label) {
       final selected = tool == t;
-      return GestureDetector(
-        onTap: () => onToggle(t),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? AppTheme.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon,
-                  size: 20,
-                  color: selected ? Colors.white : AppTheme.inkSoft),
-              const SizedBox(width: 5),
-              Text(label,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: selected ? Colors.white : AppTheme.inkSoft,
-                  )),
-            ],
+      return PressableScale(
+        child: GestureDetector(
+          onTap: () => onToggle(t),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: selected ? AppTheme.primary : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon,
+                    size: 20,
+                    color: selected ? Colors.white : AppTheme.inkSoft),
+                const SizedBox(width: 5),
+                Text(label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: selected ? Colors.white : AppTheme.inkSoft,
+                    )),
+              ],
+            ),
           ),
         ),
       );
@@ -466,8 +531,13 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
     with TickerProviderStateMixin {
   late final ConfettiController _confetti;
   late final AnimationController _reveal;
+  late final AnimationController _cardEntrance;
   final GlobalKey _shareKey = GlobalKey();
   bool _sharing = false;
+  bool _entranceStarted = false;
+
+  bool get _motion =>
+      !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
 
   @override
   void initState() {
@@ -477,15 +547,32 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    // Reveal the picture, then celebrate.
+    _cardEntrance = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
     _reveal.forward();
     _confetti.play();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_entranceStarted) return;
+    _entranceStarted = true;
+    // Smooth entrance, then the completed-grid wave, then celebrate.
+    if (_motion) {
+      _cardEntrance.forward();
+    } else {
+      _cardEntrance.value = 1.0;
+    }
   }
 
   @override
   void dispose() {
     _confetti.dispose();
     _reveal.dispose();
+    _cardEntrance.dispose();
     super.dispose();
   }
 
@@ -498,7 +585,18 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
 
     return Stack(
       children: [
-        _OverlayScaffold(
+        AnimatedBuilder(
+          animation: _cardEntrance,
+          builder: (context, child) {
+            final t = Curves.easeOutCubic.transform(
+              _cardEntrance.value.clamp(0.0, 1.0),
+            );
+            return Opacity(
+              opacity: t,
+              child: Transform.scale(scale: 0.88 + 0.12 * t, child: child),
+            );
+          },
+          child: _OverlayScaffold(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -549,8 +647,14 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
                 children: [
                   const Icon(Icons.monetization_on, color: AppTheme.accent),
                   const SizedBox(width: 6),
-                  Text('+${state.earnedCoins} coins',
-                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                  TweenAnimationBuilder<int>(
+                    tween: IntTween(begin: 0, end: state.earnedCoins),
+                    duration: Duration(
+                        milliseconds: _motion ? 900 : 0),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, v, _) => Text('+$v coins',
+                        style: const TextStyle(fontWeight: FontWeight.w800)),
+                  ),
                 ],
               ),
               if (state.earnedChestBonus > 0) ...[
@@ -571,12 +675,14 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                        backgroundColor: AppTheme.accent),
-                    onPressed: () => _watchAdForStars(context, ref, levelId),
-                    icon: const Icon(Icons.play_circle_outline, size: 18),
-                    label: const Text('Watch Ad → 3★'),
+                  child: PressableScale(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.accent),
+                      onPressed: () => _watchAdForStars(context, ref, levelId),
+                      icon: const Icon(Icons.play_circle_outline, size: 18),
+                      label: const Text('Watch Ad → 3★'),
+                    ),
                   ),
                 ),
               ],
@@ -584,19 +690,23 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _sharing ? null : _share,
-                      icon: const Icon(Icons.ios_share, size: 18),
-                      label: const Text('Share'),
+                    child: PressableScale(
+                      child: OutlinedButton.icon(
+                        onPressed: _sharing ? null : _share,
+                        icon: const Icon(Icons.ios_share, size: 18),
+                        label: const Text('Share'),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => ref
-                          .read(gameControllerProvider(levelId).notifier)
-                          .restart(),
-                      child: const Text('Replay'),
+                    child: PressableScale(
+                      child: OutlinedButton(
+                        onPressed: () => ref
+                            .read(gameControllerProvider(levelId).notifier)
+                            .restart(),
+                        child: const Text('Replay'),
+                      ),
                     ),
                   ),
                 ],
@@ -605,25 +715,30 @@ class _CompleteOverlayState extends ConsumerState<_CompleteOverlay>
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => context.go('/'),
-                      child: const Text('Home'),
+                    child: PressableScale(
+                      child: OutlinedButton(
+                        onPressed: () => context.go('/'),
+                        child: const Text('Home'),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: FilledButton(
-                      onPressed: hasNext
-                          ? () =>
-                              context.pushReplacement('/game/${levelId + 1}')
-                          : () => context.go('/'),
-                      child: Text(hasNext ? 'Next' : 'Done'),
+                    child: PressableScale(
+                      child: FilledButton(
+                        onPressed: hasNext
+                            ? () =>
+                                context.pushReplacement('/game/${levelId + 1}')
+                            : () => context.go('/'),
+                        child: Text(hasNext ? 'Next' : 'Done'),
+                      ),
                     ),
                   ),
                 ],
               ),
             ],
           ),
+        ),
         ),
         // Confetti from the top center.
         Align(
@@ -757,31 +872,39 @@ class _GameOverOverlay extends ConsumerWidget {
               textAlign: TextAlign.center,
               style: TextStyle(color: AppTheme.inkSoft)),
           const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: () => _restoreWithAd(context, ref),
-            icon: const Icon(Icons.play_circle_outline),
-            label: const Text('Watch Ad · Restore Hearts'),
+          PressableScale(
+            child: FilledButton.icon(
+              onPressed: () => _restoreWithAd(context, ref),
+              icon: const Icon(Icons.play_circle_outline),
+              label: const Text('Watch Ad · Restore Hearts'),
+            ),
           ),
           const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => _restoreWithCoins(context, ref),
-            icon: const Icon(Icons.monetization_on, color: AppTheme.accent),
-            label: const Text('Restore for 20 coins'),
+          PressableScale(
+            child: OutlinedButton.icon(
+              onPressed: () => _restoreWithCoins(context, ref),
+              icon: const Icon(Icons.monetization_on, color: AppTheme.accent),
+              label: const Text('Restore for 20 coins'),
+            ),
           ),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                  onPressed: () => context.go('/'),
-                  child: const Text('Home'),
+                child: PressableScale(
+                  child: OutlinedButton(
+                    onPressed: () => context.go('/'),
+                    child: const Text('Home'),
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: OutlinedButton(
-                  onPressed: controller.restart,
-                  child: const Text('Restart'),
+                child: PressableScale(
+                  child: OutlinedButton(
+                    onPressed: controller.restart,
+                    child: const Text('Restart'),
+                  ),
                 ),
               ),
             ],
