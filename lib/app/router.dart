@@ -14,7 +14,6 @@ import '../features/puzzle/puzzle_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/store/remove_ads_screen.dart';
 import '../features/store/store_screen.dart';
-import '../features/tournament/tournament_screen.dart';
 import 'providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -58,10 +57,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           final i = int.tryParse(state.pathParameters['i'] ?? '0') ?? 0;
           return ColorPuzzleScreen(index: i);
         },
-      ),
-      GoRoute(
-        path: '/tournament',
-        builder: (_, __) => const TournamentScreen(),
       ),
       GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
       GoRoute(path: '/store', builder: (_, __) => const StoreScreen()),
