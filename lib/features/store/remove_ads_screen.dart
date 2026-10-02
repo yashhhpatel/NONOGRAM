@@ -6,6 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../core/billing/billing_service.dart';
+import '../../shared/widgets/entrance_fade.dart';
+import '../../shared/widgets/floating_bob.dart';
+import '../../shared/widgets/pop_in.dart';
+import '../../shared/widgets/pressable_scale.dart';
 
 /// Dedicated Lifetime Ads-Free purchase page, opened from Settings → Remove Ads.
 ///
@@ -83,7 +87,10 @@ class _RemoveAdsScreenState extends ConsumerState<RemoveAdsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.verified, color: AppTheme.success, size: 56),
+            const PopIn(
+              duration: Duration(milliseconds: 700),
+              child: Icon(Icons.verified, color: AppTheme.success, size: 56),
+            ),
             const SizedBox(height: 12),
             const Text('Lifetime Ads-Free active!',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
@@ -141,7 +148,7 @@ class _RemoveAdsScreenState extends ConsumerState<RemoveAdsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _Hero(owned: owned, price: price),
+          EntranceFade(child: _Hero(owned: owned, price: price)),
           const SizedBox(height: 20),
           Text('Lifetime Ads-Free',
               style: TextStyle(
@@ -149,7 +156,12 @@ class _RemoveAdsScreenState extends ConsumerState<RemoveAdsScreen> {
                   fontWeight: FontWeight.w800,
                   color: AppTheme.ink)),
           const SizedBox(height: 12),
-          for (final b in _benefits) _BenefitRow(text: b),
+          for (final (i, b) in _benefits.indexed)
+            EntranceFade(
+              delay: EntranceFade.stagger(i + 1, stepMs: 70),
+              offset: const Offset(-16, 0),
+              child: _BenefitRow(text: b, index: i),
+            ),
           const SizedBox(height: 24),
           if (owned)
             Container(
@@ -176,25 +188,31 @@ class _RemoveAdsScreenState extends ConsumerState<RemoveAdsScreen> {
           else ...[
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
-                onPressed: _busy ? null : _buy,
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+              child: PressableScale(
+                enabled: !_busy,
+                child: FilledButton(
+                  onPressed: _busy ? null : _buy,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _busy
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : Text('Purchase for $price'),
                 ),
-                child: _busy
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : Text('Purchase for $price'),
               ),
             ),
             const SizedBox(height: 6),
             Center(
-              child: TextButton(
-                onPressed: _busy ? null : _restore,
-                child: const Text('Restore Purchases'),
+              child: PressableScale(
+                enabled: !_busy,
+                child: TextButton(
+                  onPressed: _busy ? null : _restore,
+                  child: const Text('Restore Purchases'),
+                ),
               ),
             ),
             const SizedBox(height: 6),
@@ -230,8 +248,10 @@ class _Hero extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(owned ? Icons.verified : Icons.block,
-              color: Colors.white, size: 44),
+          FloatingBob(
+            child: Icon(owned ? Icons.verified : Icons.block,
+                color: Colors.white, size: 44),
+          ),
           const SizedBox(height: 12),
           const Text('Lifetime Ads-Free',
               style: TextStyle(
@@ -257,7 +277,8 @@ class _Hero extends StatelessWidget {
 
 class _BenefitRow extends StatelessWidget {
   final String text;
-  const _BenefitRow({required this.text});
+  final int index;
+  const _BenefitRow({required this.text, required this.index});
 
   @override
   Widget build(BuildContext context) {
@@ -265,7 +286,11 @@ class _BenefitRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          const Icon(Icons.check_circle, color: AppTheme.success, size: 20),
+          PopIn(
+            delay: Duration(milliseconds: 200 + index * 70),
+            child: const Icon(Icons.check_circle,
+                color: AppTheme.success, size: 20),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(text,

@@ -43,7 +43,6 @@ class AppTheme {
       _dark ? const Color(0xFF6B7288) : const Color(0xFFB0B6C8);
 
   static ThemeData light() => _build(Brightness.light);
-  static ThemeData dark() => _build(Brightness.dark);
 
   static ThemeData _build(Brightness b) {
     final isDark = b == Brightness.dark;

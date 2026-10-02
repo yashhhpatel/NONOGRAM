@@ -159,31 +159,54 @@ class BoardPainter extends CustomPainter {
     if ((glowingRows.isEmpty && glowingCols.isEmpty) || lineGlowValue <= 0) {
       return;
     }
-    final opacity = math.sin((lineGlowValue.clamp(0.0, 1.0)) * math.pi);
+    final t = lineGlowValue.clamp(0.0, 1.0);
+    final opacity = math.sin(t * math.pi);
     if (opacity <= 0) return;
     final paint = Paint()..color = AppTheme.success.withOpacity(0.16 * opacity);
+    // A bright band that travels along the solved line, like a word being
+    // traced out, fading as it reaches the end.
+    final bandLen = m.cellSize * 1.6;
+    final sweepColor = AppTheme.success.withOpacity(0.38 * (1 - t));
+
     for (final r in glowingRows) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          m.rowGutter,
-          m.colGutter + r * m.cellSize,
-          m.cols * m.cellSize,
-          m.cellSize,
-        ),
-        paint,
+      final rect = Rect.fromLTWH(
+        m.rowGutter,
+        m.colGutter + r * m.cellSize,
+        m.cols * m.cellSize,
+        m.cellSize,
       );
+      canvas.drawRect(rect, paint);
+      final x = rect.left - bandLen + (rect.width + bandLen) * t;
+      _paintSweep(canvas, rect,
+          Rect.fromLTWH(x, rect.top, bandLen, rect.height), sweepColor,
+          horizontal: true);
     }
     for (final c in glowingCols) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          m.rowGutter + c * m.cellSize,
-          m.colGutter,
-          m.cellSize,
-          m.rows * m.cellSize,
-        ),
-        paint,
+      final rect = Rect.fromLTWH(
+        m.rowGutter + c * m.cellSize,
+        m.colGutter,
+        m.cellSize,
+        m.rows * m.cellSize,
       );
+      canvas.drawRect(rect, paint);
+      final y = rect.top - bandLen + (rect.height + bandLen) * t;
+      _paintSweep(canvas, rect,
+          Rect.fromLTWH(rect.left, y, rect.width, bandLen), sweepColor,
+          horizontal: false);
     }
+  }
+
+  void _paintSweep(Canvas canvas, Rect clip, Rect band, Color color,
+      {required bool horizontal}) {
+    final shader = LinearGradient(
+      begin: horizontal ? Alignment.centerLeft : Alignment.topCenter,
+      end: horizontal ? Alignment.centerRight : Alignment.bottomCenter,
+      colors: [color.withOpacity(0), color, color.withOpacity(0)],
+    ).createShader(band);
+    canvas.save();
+    canvas.clipRect(clip);
+    canvas.drawRect(band, Paint()..shader = shader);
+    canvas.restore();
   }
 
   void _paintGridLines(Canvas canvas) {

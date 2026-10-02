@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/models/board_theme.dart';
+import '../../shared/widgets/animated_count.dart';
+import '../../shared/widgets/entrance_fade.dart';
+import '../../shared/widgets/pop_in.dart';
+import '../../shared/widgets/pressable_scale.dart';
 
 class StoreScreen extends ConsumerWidget {
   const StoreScreen({super.key});
@@ -24,7 +28,8 @@ class StoreScreen extends ConsumerWidget {
                 children: [
                   const Icon(Icons.monetization_on, color: AppTheme.accent),
                   const SizedBox(width: 6),
-                  Text('${profile.coins}',
+                  AnimatedCount(
+                      value: profile.coins,
                       style:
                           const TextStyle(fontWeight: FontWeight.w800)),
                 ],
@@ -36,6 +41,7 @@ class StoreScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          for (final (i, w) in [
           _sectionTitle('Spend Coins'),
           _CoinSpendTile(
             icon: Icons.lightbulb,
@@ -91,6 +97,8 @@ class StoreScreen extends ConsumerWidget {
               style: TextStyle(color: AppTheme.inkSoft, fontSize: 12),
             ),
           ),
+          ].indexed)
+            EntranceFade(delay: EntranceFade.stagger(i, stepMs: 45), child: w),
         ],
       ),
     );
@@ -155,16 +163,29 @@ class _ThemeSwatch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PressableScale(
+      scaleDown: 0.92,
+      child: GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOut,
         decoration: BoxDecoration(
-          color: AppTheme.card,
+          color: selected ? AppTheme.primary.withOpacity(0.06) : AppTheme.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected ? AppTheme.primary : AppTheme.line,
             width: selected ? 2 : 1,
           ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primary.withOpacity(0.18),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
         padding: const EdgeInsets.all(8),
         child: Column(
@@ -185,7 +206,10 @@ class _ThemeSwatch extends StatelessWidget {
                 overflow: TextOverflow.ellipsis),
             const SizedBox(height: 2),
             if (selected)
-              const Icon(Icons.check_circle, size: 15, color: AppTheme.primary)
+              const PopIn(
+                child: Icon(Icons.check_circle,
+                    size: 15, color: AppTheme.primary),
+              )
             else if (owned)
               Text('Owned',
                   style: TextStyle(fontSize: 10, color: AppTheme.inkSoft))
@@ -203,6 +227,7 @@ class _ThemeSwatch extends StatelessWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -232,9 +257,11 @@ class _CoinSpendTile extends StatelessWidget {
       child: ListTile(
         leading: Icon(icon, color: AppTheme.primary),
         title: Text(title),
-        trailing: FilledButton(
-          onPressed: onBuy,
-          child: Text('$cost'),
+        trailing: PressableScale(
+          child: FilledButton(
+            onPressed: onBuy,
+            child: Text('$cost'),
+          ),
         ),
       ),
     );

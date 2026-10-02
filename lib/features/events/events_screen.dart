@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/data/level_catalog.dart';
+import '../../shared/widgets/animated_progress_bar.dart';
+import '../../shared/widgets/entrance_fade.dart';
+import '../../shared/widgets/floating_bob.dart';
+import '../../shared/widgets/pop_in.dart';
 
 /// Modular events. Each event tracks real progress: completed campaign levels
 /// belonging to its themed category. Events are decoupled from the campaign's
@@ -47,10 +51,14 @@ class EventsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          for (final e in _events)
-            _EventCard(
-              def: e,
-              progress: (perCategory[e.category] ?? 0).clamp(0, e.target),
+          for (final (i, e) in _events.indexed)
+            EntranceFade(
+              delay: EntranceFade.stagger(i, stepMs: 60),
+              child: _EventCard(
+                def: e,
+                phase: i / _events.length,
+                progress: (perCategory[e.category] ?? 0).clamp(0, e.target),
+              ),
             ),
         ],
       ),
@@ -61,7 +69,9 @@ class EventsScreen extends ConsumerWidget {
 class _EventCard extends StatelessWidget {
   final _EventDef def;
   final int progress;
-  const _EventCard({required this.def, required this.progress});
+  final double phase;
+  const _EventCard(
+      {required this.def, required this.progress, required this.phase});
 
   @override
   Widget build(BuildContext context) {
@@ -74,19 +84,30 @@ class _EventCard extends StatelessWidget {
         color: AppTheme.card,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppTheme.line),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: def.color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
+              FloatingBob(
+                amplitude: 2.5,
+                phase: phase,
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: def.color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(def.icon, color: def.color),
                 ),
-                child: Icon(def.icon, color: def.color),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -103,18 +124,18 @@ class _EventCard extends StatelessWidget {
                 ),
               ),
               if (done)
-                const Icon(Icons.emoji_events, color: AppTheme.accent),
+                const PopIn(
+                  delay: Duration(milliseconds: 600),
+                  child: Icon(Icons.emoji_events, color: AppTheme.accent),
+                ),
             ],
           ),
           const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: ratio,
-              minHeight: 8,
-              backgroundColor: AppTheme.surface,
-              color: def.color,
-            ),
+          AnimatedProgressBar(
+            value: ratio,
+            height: 8,
+            backgroundColor: AppTheme.surface,
+            color: def.color,
           ),
           const SizedBox(height: 6),
           Text('$progress / ${def.target} puzzles',

@@ -22,7 +22,7 @@ import 'board_metrics.dart';
 import 'board_painter.dart';
 import 'game_controller.dart';
 import 'widgets/picture_preview.dart';
-import 'widgets/pressable_scale.dart';
+import '../../shared/widgets/pressable_scale.dart';
 import 'widgets/tutorial_overlay.dart';
 
 class PuzzleScreen extends ConsumerStatefulWidget {
@@ -45,7 +45,7 @@ class _PuzzleScreenState extends ConsumerState<PuzzleScreen>
   late final AnimationController _entrance = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 560));
   late final AnimationController _lineGlow = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 700));
+      vsync: this, duration: const Duration(milliseconds: 900));
   Set<({int r, int c})> _popCells = {};
   Set<int> _glowingRows = {};
   Set<int> _glowingCols = {};
@@ -359,10 +359,17 @@ class _Hearts extends StatelessWidget {
     return Row(
       children: [
         for (var i = 0; i < max; i++)
-          Icon(
-            i < hearts ? Icons.favorite : Icons.favorite_border,
-            color: AppTheme.heart,
-            size: 22,
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 380),
+            switchInCurve: Curves.easeOutBack,
+            transitionBuilder: (child, anim) =>
+                ScaleTransition(scale: anim, child: child),
+            child: Icon(
+              i < hearts ? Icons.favorite : Icons.favorite_border,
+              key: ValueKey(i < hearts),
+              color: AppTheme.heart,
+              size: 22,
+            ),
           ),
       ],
     );

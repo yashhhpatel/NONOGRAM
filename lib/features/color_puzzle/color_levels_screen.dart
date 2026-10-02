@@ -6,6 +6,11 @@ import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/data/color_puzzle_catalog.dart';
 import '../../game/models/color_puzzle.dart';
+import '../../shared/widgets/animated_progress_bar.dart';
+import '../../shared/widgets/entrance_fade.dart';
+import '../../shared/widgets/floating_bob.dart';
+import '../../shared/widgets/pop_in.dart';
+import '../../shared/widgets/pressable_scale.dart';
 
 class ColorLevelsScreen extends ConsumerWidget {
   const ColorLevelsScreen({super.key});
@@ -19,36 +24,54 @@ class ColorLevelsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFEC407A), Color(0xFF8E24AA)],
-              ),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.palette, color: Colors.white, size: 36),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Color Picross',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 18)),
-                      Text(
-                        'Pick a colour, then fill by the numbers. '
-                        '${completed.length}/${ColorPuzzleCatalog.count} solved.',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                    ],
-                  ),
+          EntranceFade(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFEC407A), Color(0xFF8E24AA)],
                 ),
-              ],
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF8E24AA).withOpacity(0.25),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const FloatingBob(
+                    child: Icon(Icons.palette, color: Colors.white, size: 36),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Color Picross',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18)),
+                        Text(
+                          'Pick a colour, then fill by the numbers. '
+                          '${completed.length}/${ColorPuzzleCatalog.count} solved.',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
+                        ),
+                        const SizedBox(height: 8),
+                        AnimatedProgressBar(
+                          value: completed.length / ColorPuzzleCatalog.count,
+                          color: Colors.white,
+                          backgroundColor: Colors.white24,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -61,10 +84,13 @@ class ColorLevelsScreen extends ConsumerWidget {
             childAspectRatio: 0.82,
             children: [
               for (var i = 0; i < ColorPuzzleCatalog.count; i++)
-                _ColorCard(
-                  puzzle: ColorPuzzleCatalog.puzzleAt(i),
-                  done: completed.contains(i),
-                  onTap: () => context.push('/color/$i'),
+                EntranceFade(
+                  delay: EntranceFade.stagger(i + 1, stepMs: 40, maxSteps: 12),
+                  child: _ColorCard(
+                    puzzle: ColorPuzzleCatalog.puzzleAt(i),
+                    done: completed.contains(i),
+                    onTap: () => context.push('/color/$i'),
+                  ),
                 ),
             ],
           ),
@@ -83,7 +109,9 @@ class _ColorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PressableScale(
+      scaleDown: 0.93,
+      child: GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
@@ -93,6 +121,13 @@ class _ColorCard extends StatelessWidget {
             color: done ? AppTheme.success : AppTheme.line,
             width: done ? 1.5 : 1,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         padding: const EdgeInsets.all(10),
         child: Column(
@@ -117,9 +152,14 @@ class _ColorCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: AppTheme.ink)),
             if (done)
-              const Icon(Icons.check_circle, color: AppTheme.success, size: 15),
+              const PopIn(
+                delay: Duration(milliseconds: 400),
+                child: Icon(Icons.check_circle,
+                    color: AppTheme.success, size: 15),
+              ),
           ],
         ),
+      ),
       ),
     );
   }

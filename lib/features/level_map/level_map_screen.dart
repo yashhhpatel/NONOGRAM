@@ -6,6 +6,10 @@ import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/data/level_catalog.dart';
 import '../../game/data/world_catalog.dart';
+import '../../shared/widgets/entrance_fade.dart';
+import '../../shared/widgets/floating_bob.dart';
+import '../../shared/widgets/pop_in.dart';
+import '../../shared/widgets/pressable_scale.dart';
 
 /// One row in the map: either a world header or a level node.
 sealed class _MapItem {
@@ -83,8 +87,12 @@ class _LevelMapScreenState extends ConsumerState<LevelMapScreen> {
         padding: const EdgeInsets.only(bottom: 24),
         itemBuilder: (context, index) {
           final item = _items[index];
+          final delay = Duration(milliseconds: (index % 6) * 40);
           if (item is _HeaderItem) {
-            return _WorldHeader(world: item.world);
+            return EntranceFade(
+              delay: delay,
+              child: _WorldHeader(world: item.world),
+            );
           }
           final id = (item as _LevelItem).id;
           final info = LevelCatalog.infoFor(id);
@@ -93,26 +101,51 @@ class _LevelMapScreenState extends ConsumerState<LevelMapScreen> {
           final isCurrent = id == profile.highestUnlocked;
           final isChest = WorldCatalog.isChestLevel(id);
           final alignLeft = id.isEven;
+          final world = WorldCatalog.forLevel(id);
+          final linksToNext =
+              index + 1 < _items.length && _items[index + 1] is _LevelItem;
 
-          return SizedBox(
-            height: _levelExtent,
-            child: Align(
-              alignment:
-                  alignLeft ? Alignment.centerLeft : Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: _LevelNode(
-                  id: id,
-                  size: info.size,
-                  category: info.category,
-                  world: WorldCatalog.forLevel(id),
-                  unlocked: unlocked,
-                  isCurrent: isCurrent,
-                  isChest: isChest,
-                  chestOpened: progress?.completed ?? false,
-                  stars: progress?.stars ?? 0,
-                  onTap: unlocked ? () => context.push('/game/$id') : null,
-                ),
+          return EntranceFade(
+            delay: delay,
+            offset: Offset(alignLeft ? -28 : 28, 0),
+            child: SizedBox(
+              height: _levelExtent,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  if (linksToNext)
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: _TrailPainter(
+                          fromLeft: alignLeft,
+                          color: (progress?.completed ?? false)
+                              ? world.color.withOpacity(0.55)
+                              : AppTheme.line,
+                        ),
+                      ),
+                    ),
+                  Align(
+                    alignment: alignLeft
+                        ? Alignment.centerLeft
+                        : Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: _LevelNode(
+                        id: id,
+                        size: info.size,
+                        category: info.category,
+                        world: world,
+                        unlocked: unlocked,
+                        isCurrent: isCurrent,
+                        isChest: isChest,
+                        chestOpened: progress?.completed ?? false,
+                        stars: progress?.stars ?? 0,
+                        onTap:
+                            unlocked ? () => context.push('/game/$id') : null,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -140,7 +173,10 @@ class _WorldHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(world.icon, color: Colors.white, size: 30),
+          FloatingBob(
+            amplitude: 3,
+            child: Icon(world.icon, color: Colors.white, size: 30),
+          ),
           const SizedBox(width: 14),
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -202,7 +238,9 @@ class _LevelNode extends StatelessWidget {
             : AppTheme.card;
     final fg = isCurrent ? Colors.white : AppTheme.ink;
 
-    return InkWell(
+    final node = PressableScale(
+      enabled: unlocked,
+      child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
@@ -214,6 +252,15 @@ class _LevelNode extends StatelessWidget {
           border: Border.all(
             color: isCurrent ? world.color : AppTheme.line,
           ),
+          boxShadow: unlocked && !isCurrent
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [
@@ -273,15 +320,20 @@ class _LevelNode extends StatelessWidget {
                     Row(
                       children: [
                         for (var s = 0; s < 3; s++)
-                          Icon(
-                            s < stars ? Icons.star : Icons.star_border,
-                            size: 15,
-                            color: s < stars
-                                ? AppTheme.accent
-                                : (isCurrent
-                                    ? Colors.white54
-                                    : AppTheme.line),
-                          ),
+                          s < stars
+                              ? PopIn(
+                                  delay: Duration(
+                                      milliseconds: 180 + s * 110),
+                                  child: const Icon(Icons.star,
+                                      size: 15, color: AppTheme.accent),
+                                )
+                              : Icon(
+                                  Icons.star_border,
+                                  size: 15,
+                                  color: isCurrent
+                                      ? Colors.white54
+                                      : AppTheme.line,
+                                ),
                       ],
                     ),
                 ],
@@ -290,6 +342,101 @@ class _LevelNode extends StatelessWidget {
           ],
         ),
       ),
+      ),
+    );
+
+    return isCurrent ? _CurrentPulse(color: world.color, child: node) : node;
+  }
+}
+
+/// A soft, breathing halo around the level the player should play next.
+class _CurrentPulse extends StatefulWidget {
+  final Color color;
+  final Widget child;
+  const _CurrentPulse({required this.color, required this.child});
+
+  @override
+  State<_CurrentPulse> createState() => _CurrentPulseState();
+}
+
+class _CurrentPulseState extends State<_CurrentPulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1600));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      _c.stop();
+      _c.value = 0.5;
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(_c.value);
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withOpacity(0.18 + 0.22 * t),
+                blurRadius: 10 + 14 * t,
+                spreadRadius: 1 + 3 * t,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: widget.child,
     );
   }
+}
+
+/// A dotted, winding trail from this level's node down to the next one,
+/// linking the map into a single path.
+class _TrailPainter extends CustomPainter {
+  final bool fromLeft;
+  final Color color;
+  _TrailPainter({required this.fromLeft, required this.color});
+
+  static const _nodeCenterInset = 28 + 230 / 2;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const leftX = _nodeCenterInset;
+    final rightX = size.width - _nodeCenterInset;
+    final x1 = fromLeft ? leftX : rightX;
+    final x2 = fromLeft ? rightX : leftX;
+    final y1 = size.height / 2;
+    final y2 = size.height * 1.5;
+    final path = Path()
+      ..moveTo(x1, y1)
+      ..cubicTo(x1, size.height, x2, size.height, x2, y2);
+
+    final dot = Paint()..color = color;
+    for (final metric in path.computeMetrics()) {
+      for (var d = 0.0; d < metric.length; d += 11) {
+        final pos = metric.getTangentForOffset(d)?.position;
+        if (pos != null) canvas.drawCircle(pos, 2.6, dot);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrailPainter old) =>
+      old.fromLeft != fromLeft || old.color != color;
 }

@@ -6,6 +6,10 @@ import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/data/level_catalog.dart';
 import '../../game/util/date_key.dart';
+import '../../shared/widgets/animated_count.dart';
+import '../../shared/widgets/entrance_fade.dart';
+import '../../shared/widgets/floating_bob.dart';
+import '../../shared/widgets/pressable_scale.dart';
 import 'widgets/puzzle_reveal_background.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -35,81 +39,108 @@ class HomeScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    _CoinPill(coins: profile.coins),
-                    if (profile.dailyStreak > 0) ...[
-                      const SizedBox(width: 8),
-                      _StreakChip(streak: profile.dailyStreak),
+                EntranceFade(
+                  offset: const Offset(0, -12),
+                  child: Row(
+                    children: [
+                      _CoinPill(coins: profile.coins),
+                      if (profile.dailyStreak > 0) ...[
+                        const SizedBox(width: 8),
+                        _StreakChip(streak: profile.dailyStreak),
+                      ],
+                      const Spacer(),
+                      _TopIcon(
+                        icon: Icons.emoji_events_outlined,
+                        onTap: () => context.push('/achievements'),
+                      ),
+                      _GiftButton(
+                        available:
+                            profile.lastRewardClaimDate != DateKey.today(),
+                        onTap: () => context.push('/daily-reward'),
+                      ),
+                      _TopIcon(
+                        icon: Icons.settings_outlined,
+                        onTap: () => context.push('/settings'),
+                      ),
                     ],
-                    const Spacer(),
-                    _TopIcon(
-                      icon: Icons.emoji_events_outlined,
-                      onTap: () => context.push('/achievements'),
-                    ),
-                    _GiftButton(
-                      available:
-                          profile.lastRewardClaimDate != DateKey.today(),
-                      onTap: () => context.push('/daily-reward'),
-                    ),
-                    _TopIcon(
-                      icon: Icons.settings_outlined,
-                      onTap: () => context.push('/settings'),
-                    ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 28),
-                const _Logo(),
+                EntranceFade(
+                  delay: EntranceFade.stagger(1),
+                  child: const _Logo(),
+                ),
                 const SizedBox(height: 28),
-                _ContinueHero(
-                  levelId: current,
-                  category: info.category,
-                  size: info.size,
-                  hasProgress: hasProgress,
-                  resuming: resuming,
-                  onTap: () => context.push('/game/$current'),
+                EntranceFade(
+                  delay: EntranceFade.stagger(2),
+                  child: _ContinueHero(
+                    levelId: current,
+                    category: info.category,
+                    size: info.size,
+                    hasProgress: hasProgress,
+                    resuming: resuming,
+                    onTap: () => context.push('/game/$current'),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/map'),
-                  icon: const Icon(Icons.map_outlined, size: 18),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                EntranceFade(
+                  delay: EntranceFade.stagger(3),
+                  child: PressableScale(
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.push('/map'),
+                      icon: const Icon(Icons.map_outlined, size: 18),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      label: const Text('Level Map'),
                     ),
                   ),
-                  label: const Text('Level Map'),
                 ),
                 const SizedBox(height: 12),
-                _DailyPuzzleCard(
-                  done: dailyDone,
-                  onTap: () => context.push('/daily'),
+                EntranceFade(
+                  delay: EntranceFade.stagger(4),
+                  child: _DailyPuzzleCard(
+                    done: dailyDone,
+                    onTap: () => context.push('/daily'),
+                  ),
                 ),
                 const SizedBox(height: 12),
-                _ColorPicrossBanner(onTap: () => context.push('/color')),
+                EntranceFade(
+                  delay: EntranceFade.stagger(5),
+                  child: _ColorPicrossBanner(
+                      onTap: () => context.push('/color')),
+                ),
                 const SizedBox(height: 28),
-                Row(
-                  children: [
-                    _FeatureTile(
-                      icon: Icons.calendar_today_outlined,
-                      label: 'Daily',
-                      color: const Color(0xFF00897B),
-                      onTap: () => context.push('/daily'),
-                    ),
-                    _FeatureTile(
-                      icon: Icons.celebration_outlined,
-                      label: 'Events',
-                      color: const Color(0xFF8E24AA),
-                      onTap: () => context.push('/events'),
-                    ),
-                    _FeatureTile(
-                      icon: Icons.storefront_outlined,
-                      label: 'Store',
-                      color: AppTheme.primary,
-                      onTap: () => context.push('/store'),
-                    ),
-                  ],
+                EntranceFade(
+                  delay: EntranceFade.stagger(6),
+                  child: Row(
+                    children: [
+                      _FeatureTile(
+                        icon: Icons.calendar_today_outlined,
+                        label: 'Daily',
+                        color: const Color(0xFF00897B),
+                        phase: 0.0,
+                        onTap: () => context.push('/daily'),
+                      ),
+                      _FeatureTile(
+                        icon: Icons.celebration_outlined,
+                        label: 'Events',
+                        color: const Color(0xFF8E24AA),
+                        phase: 0.33,
+                        onTap: () => context.push('/events'),
+                      ),
+                      _FeatureTile(
+                        icon: Icons.storefront_outlined,
+                        label: 'Store',
+                        color: AppTheme.primary,
+                        phase: 0.66,
+                        onTap: () => context.push('/store'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -141,7 +172,9 @@ class _ContinueHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PressableScale(
+      scaleDown: 0.97,
+      child: GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -192,36 +225,90 @@ class _ContinueHero extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            SizedBox(
-              width: 64,
-              height: 64,
-              child: CustomPaint(painter: _DecoPatternPainter(levelId)),
+            SizedBox(width: 64, height: 64, child: _DecoPattern(seed: levelId)),
+            const FloatingBob(
+              amplitude: 3,
+              child: Icon(Icons.play_circle_fill, color: Colors.white, size: 40),
             ),
-            const Icon(Icons.play_circle_fill, color: Colors.white, size: 40),
           ],
+        ),
+      ),
+      ),
+    );
+  }
+}
+
+/// A purely decorative mini-grid (not the level's real solution) with a soft
+/// light sweeping diagonally across its filled cells, like a row being solved.
+class _DecoPattern extends StatefulWidget {
+  final int seed;
+  const _DecoPattern({required this.seed});
+
+  @override
+  State<_DecoPattern> createState() => _DecoPatternState();
+}
+
+class _DecoPatternState extends State<_DecoPattern>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 3200));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      _c.stop();
+    } else if (!_c.isAnimating) {
+      _c.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _c,
+        builder: (context, _) => CustomPaint(
+          painter: _DecoPatternPainter(widget.seed,
+              _c.isAnimating ? _c.value : -1),
         ),
       ),
     );
   }
 }
 
-/// A purely decorative dot pattern (not the level's real solution).
 class _DecoPatternPainter extends CustomPainter {
   final int seed;
-  _DecoPatternPainter(this.seed);
+
+  /// 0..1 position of the sweep, or negative for no sweep.
+  final double sweep;
+  _DecoPatternPainter(this.seed, this.sweep);
 
   @override
   void paint(Canvas canvas, Size size) {
     const n = 4;
     final cell = size.width / n;
     final paint = Paint();
+    // The sweep travels diagonal index 0..6 over the first 60% of the cycle.
+    final front = sweep < 0 ? -10.0 : sweep / 0.6 * (2 * n + 1) - 1;
     for (var r = 0; r < n; r++) {
       for (var c = 0; c < n; c++) {
         final on = ((seed * 31 + r * 7 + c * 13) % 5) < 2;
-        paint.color = Colors.white.withOpacity(on ? 0.85 : 0.18);
+        final d = (r + c - front).abs();
+        final glow = on && d < 1.2 ? (1 - d / 1.2) : 0.0;
+        final base = on ? 0.78 : 0.18;
+        paint.color = Colors.white.withOpacity((base + 0.22 * glow).clamp(0, 1));
+        final grow = 1.5 * glow;
         canvas.drawRRect(
           RRect.fromRectAndRadius(
-            Rect.fromLTWH(c * cell + 2, r * cell + 2, cell - 4, cell - 4),
+            Rect.fromLTWH(c * cell + 2 - grow, r * cell + 2 - grow,
+                cell - 4 + grow * 2, cell - 4 + grow * 2),
             const Radius.circular(4),
           ),
           paint,
@@ -231,7 +318,8 @@ class _DecoPatternPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DecoPatternPainter old) => old.seed != seed;
+  bool shouldRepaint(covariant _DecoPatternPainter old) =>
+      old.seed != seed || old.sweep != sweep;
 }
 
 class _DailyPuzzleCard extends StatelessWidget {
@@ -241,7 +329,9 @@ class _DailyPuzzleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PressableScale(
+      scaleDown: 0.97,
+      child: GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -251,6 +341,13 @@ class _DailyPuzzleCard extends StatelessWidget {
           border: Border.all(
             color: done ? AppTheme.success : const Color(0xFF00897B),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -287,6 +384,7 @@ class _DailyPuzzleCard extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -297,7 +395,9 @@ class _ColorPicrossBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PressableScale(
+      scaleDown: 0.97,
+      child: GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -306,10 +406,21 @@ class _ColorPicrossBanner extends StatelessWidget {
             colors: [Color(0xFFEC407A), Color(0xFF8E24AA)],
           ),
           borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF8E24AA).withOpacity(0.25),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: const Row(
           children: [
-            Icon(Icons.palette, color: Colors.white, size: 26),
+            FloatingBob(
+              amplitude: 3,
+              period: Duration(milliseconds: 2200),
+              child: Icon(Icons.palette, color: Colors.white, size: 26),
+            ),
             SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -328,6 +439,7 @@ class _ColorPicrossBanner extends StatelessWidget {
             Icon(Icons.chevron_right, color: Colors.white),
           ],
         ),
+      ),
       ),
     );
   }
@@ -368,7 +480,10 @@ class _TopIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(onPressed: onTap, icon: Icon(icon));
+    return PressableScale(
+      scaleDown: 0.88,
+      child: IconButton(onPressed: onTap, icon: Icon(icon)),
+    );
   }
 }
 
@@ -382,19 +497,30 @@ class _Logo extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Column(
       children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppTheme.primary, AppTheme.primaryDark],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        FloatingBob(
+          amplitude: 3,
+          period: const Duration(milliseconds: 3200),
+          child: Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppTheme.primary, AppTheme.primaryDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primary.withOpacity(0.28),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            borderRadius: BorderRadius.circular(22),
+            child: const Icon(Icons.grid_view_rounded,
+                color: Colors.white, size: 44),
           ),
-          child: const Icon(Icons.grid_view_rounded,
-              color: Colors.white, size: 44),
         ),
         const SizedBox(height: 14),
         Text(
@@ -425,12 +551,22 @@ class _GiftButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const gift = Icon(Icons.card_giftcard_outlined);
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        IconButton(
-          onPressed: onTap,
-          icon: const Icon(Icons.card_giftcard_outlined),
+        PressableScale(
+          scaleDown: 0.88,
+          child: IconButton(
+            onPressed: onTap,
+            icon: available
+                ? const FloatingBob(
+                    amplitude: 2.5,
+                    period: Duration(milliseconds: 1400),
+                    child: gift,
+                  )
+                : gift,
+          ),
         ),
         if (available)
           Positioned(
@@ -469,7 +605,8 @@ class _CoinPill extends StatelessWidget {
         children: [
           const Icon(Icons.monetization_on, color: AppTheme.accent, size: 20),
           const SizedBox(width: 6),
-          Text('$coins',
+          AnimatedCount(
+              value: coins,
               style: TextStyle(
                   fontWeight: FontWeight.w800, color: AppTheme.ink)),
         ],
@@ -482,11 +619,13 @@ class _FeatureTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final double phase;
   final VoidCallback onTap;
   const _FeatureTile({
     required this.icon,
     required this.label,
     required this.color,
+    required this.phase,
     required this.onTap,
   });
 
@@ -495,30 +634,41 @@ class _FeatureTile extends StatelessWidget {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: BoxDecoration(
-              color: AppTheme.card,
+        child: PressableScale(
+          scaleDown: 0.94,
+          child: Material(
+            color: AppTheme.card,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: onTap,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.line),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.14),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 22),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.line),
                 ),
-                const SizedBox(height: 6),
-                Text(label,
-                    style: TextStyle(fontSize: 11, color: AppTheme.inkSoft)),
-              ],
+                child: Column(
+                  children: [
+                    FloatingBob(
+                      amplitude: 2.5,
+                      phase: phase,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(icon, color: color, size: 22),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(label,
+                        style:
+                            TextStyle(fontSize: 11, color: AppTheme.inkSoft)),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

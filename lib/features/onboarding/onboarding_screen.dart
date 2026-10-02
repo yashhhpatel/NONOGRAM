@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import '../../shared/widgets/entrance_fade.dart';
+import '../../shared/widgets/floating_bob.dart';
+import '../../shared/widgets/pop_in.dart';
+import '../../shared/widgets/pressable_scale.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -54,9 +58,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           children: [
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _finish,
-                child: const Text('Skip'),
+              child: PressableScale(
+                child: TextButton(
+                  onPressed: _finish,
+                  child: const Text('Skip'),
+                ),
               ),
             ),
             Expanded(
@@ -71,33 +77,54 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(28),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.1),
-                            shape: BoxShape.circle,
+                        PopIn(
+                          duration: const Duration(milliseconds: 800),
+                          child: FloatingBob(
+                            amplitude: 6,
+                            period: const Duration(milliseconds: 2800),
+                            child: Container(
+                              padding: const EdgeInsets.all(28),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primary.withOpacity(0.12),
+                                    blurRadius: 24,
+                                    spreadRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(p.icon,
+                                  size: 72, color: AppTheme.primary),
+                            ),
                           ),
-                          child: Icon(p.icon, size: 72, color: AppTheme.primary),
                         ),
                         const SizedBox(height: 32),
-                        Text(
-                          p.title,
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.ink,
+                        EntranceFade(
+                          delay: const Duration(milliseconds: 150),
+                          child: Text(
+                            p.title,
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.ink,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          p.body,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppTheme.inkSoft,
-                            height: 1.4,
+                        EntranceFade(
+                          delay: const Duration(milliseconds: 280),
+                          child: Text(
+                            p.body,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: AppTheme.inkSoft,
+                              height: 1.4,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
@@ -125,18 +152,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               padding: const EdgeInsets.all(24),
               child: SizedBox(
                 width: double.infinity,
-                child: FilledButton(
-                  onPressed: () {
-                    if (last) {
-                      _finish();
-                    } else {
-                      _controller.nextPage(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOut,
-                      );
-                    }
-                  },
-                  child: Text(last ? 'Get Started' : 'Continue'),
+                child: PressableScale(
+                  child: FilledButton(
+                    onPressed: () {
+                      if (last) {
+                        _finish();
+                      } else {
+                        _controller.nextPage(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOut,
+                        );
+                      }
+                    },
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: Text(last ? 'Get Started' : 'Continue',
+                          key: ValueKey(last)),
+                    ),
+                  ),
                 ),
               ),
             ),

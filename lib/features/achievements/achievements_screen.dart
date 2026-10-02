@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/models/achievement.dart';
+import '../../shared/widgets/animated_progress_bar.dart';
+import '../../shared/widgets/entrance_fade.dart';
+import '../../shared/widgets/floating_bob.dart';
+import '../../shared/widgets/pop_in.dart';
 
 class AchievementsScreen extends ConsumerWidget {
   const AchievementsScreen({super.key});
@@ -19,30 +23,58 @@ class AchievementsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [AppTheme.primary, AppTheme.primaryDark]),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.emoji_events, color: Colors.white, size: 40),
-                const SizedBox(width: 14),
-                Text('$unlocked / $total unlocked',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18)),
-              ],
+          EntranceFade(
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [AppTheme.primary, AppTheme.primaryDark]),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primary.withOpacity(0.25),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const FloatingBob(
+                    child: Icon(Icons.emoji_events,
+                        color: Colors.white, size: 40),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('$unlocked / $total unlocked',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18)),
+                        const SizedBox(height: 8),
+                        AnimatedProgressBar(
+                          value: total == 0 ? 0 : unlocked / total,
+                          color: Colors.white,
+                          backgroundColor: Colors.white24,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
-          for (final a in Achievements.all)
-            _AchievementTile(
-              achievement: a,
-              value: a.progress(profile),
+          for (final (i, a) in Achievements.all.indexed)
+            EntranceFade(
+              delay: EntranceFade.stagger(i + 1, stepMs: 45),
+              child: _AchievementTile(
+                achievement: a,
+                value: a.progress(profile),
+              ),
             ),
         ],
       ),
@@ -97,21 +129,20 @@ class _AchievementTile extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 12, color: AppTheme.inkSoft)),
                 const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: LinearProgressIndicator(
-                    value: ratio,
-                    minHeight: 6,
-                    backgroundColor: AppTheme.surface,
-                    color: done ? AppTheme.success : AppTheme.primary,
-                  ),
+                AnimatedProgressBar(
+                  value: ratio,
+                  backgroundColor: AppTheme.surface,
+                  color: done ? AppTheme.success : AppTheme.primary,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 12),
           done
-              ? const Icon(Icons.check_circle, color: AppTheme.success)
+              ? const PopIn(
+                  delay: Duration(milliseconds: 500),
+                  child: Icon(Icons.check_circle, color: AppTheme.success),
+                )
               : Text(
                   '$value/${achievement.goal}',
                   style: TextStyle(

@@ -6,6 +6,11 @@ import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/data/puzzle_repository.dart';
 import '../../game/util/date_key.dart';
+import '../../shared/widgets/animated_progress_bar.dart';
+import '../../shared/widgets/breathe.dart';
+import '../../shared/widgets/entrance_fade.dart';
+import '../../shared/widgets/pop_in.dart';
+import '../../shared/widgets/pressable_scale.dart';
 
 class DailyChallengeScreen extends ConsumerWidget {
   const DailyChallengeScreen({super.key});
@@ -42,6 +47,12 @@ class DailyChallengeScreen extends ConsumerWidget {
           const SizedBox(height: 4),
           Text('$completedThisMonth / $daysInMonth completed this month',
               style: TextStyle(color: AppTheme.inkSoft)),
+          const SizedBox(height: 10),
+          AnimatedProgressBar(
+            value: completedThisMonth / daysInMonth,
+            color: AppTheme.success,
+            backgroundColor: AppTheme.line,
+          ),
           const SizedBox(height: 16),
           _weekdayHeader(),
           const SizedBox(height: 8),
@@ -54,24 +65,31 @@ class DailyChallengeScreen extends ConsumerWidget {
             children: [
               for (var i = 0; i < leadingBlanks; i++) const SizedBox(),
               for (var d = 1; d <= daysInMonth; d++)
-                _DayCell(
-                  day: d,
-                  date: DateTime(now.year, now.month, d),
-                  now: now,
-                  completed: profile.completedDailyDates
-                      .contains(DateKey.of(DateTime(now.year, now.month, d))),
-                  onPlayToday: () => context
-                      .push('/game/${PuzzleRepository.dailyIdFor(now)}'),
+                EntranceFade(
+                  delay: Duration(milliseconds: 14 * (leadingBlanks + d)),
+                  duration: const Duration(milliseconds: 320),
+                  offset: const Offset(0, 10),
+                  child: _DayCell(
+                    day: d,
+                    date: DateTime(now.year, now.month, d),
+                    now: now,
+                    completed: profile.completedDailyDates.contains(
+                        DateKey.of(DateTime(now.year, now.month, d))),
+                    onPlayToday: () => context
+                        .push('/game/${PuzzleRepository.dailyIdFor(now)}'),
+                  ),
                 ),
             ],
           ),
           const SizedBox(height: 20),
           if (!profile.completedDailyDates.contains(DateKey.today()))
-            FilledButton.icon(
-              onPressed: () =>
-                  context.push('/game/${PuzzleRepository.dailyIdFor(now)}'),
-              icon: const Icon(Icons.play_arrow),
-              label: const Text("Play Today's Puzzle"),
+            PressableScale(
+              child: FilledButton.icon(
+                onPressed: () =>
+                    context.push('/game/${PuzzleRepository.dailyIdFor(now)}'),
+                icon: const Icon(Icons.play_arrow),
+                label: const Text("Play Today's Puzzle"),
+              ),
             )
           else
             Container(
@@ -134,7 +152,10 @@ class _DayCell extends StatelessWidget {
     Widget child;
     if (completed) {
       bg = AppTheme.success;
-      child = const Icon(Icons.check, color: Colors.white, size: 18);
+      child = const PopIn(
+        delay: Duration(milliseconds: 450),
+        child: Icon(Icons.check, color: Colors.white, size: 18),
+      );
     } else if (isToday) {
       bg = AppTheme.primary;
       child = Text('$day',
@@ -149,8 +170,9 @@ class _DayCell extends StatelessWidget {
           style: TextStyle(color: AppTheme.inkSoft));
     }
 
-    return GestureDetector(
-      onTap: isToday && !completed ? onPlayToday : null,
+    final playable = isToday && !completed;
+    final cell = GestureDetector(
+      onTap: playable ? onPlayToday : null,
       child: Container(
         decoration: BoxDecoration(
           color: bg,
@@ -160,6 +182,11 @@ class _DayCell extends StatelessWidget {
         alignment: Alignment.center,
         child: child,
       ),
+    );
+    if (!playable) return cell;
+    return PressableScale(
+      scaleDown: 0.9,
+      child: Breathe(child: cell),
     );
   }
 }

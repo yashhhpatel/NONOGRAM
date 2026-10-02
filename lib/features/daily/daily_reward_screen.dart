@@ -4,6 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../app/theme.dart';
 import '../../game/util/date_key.dart';
+import '../../shared/widgets/breathe.dart';
+import '../../shared/widgets/entrance_fade.dart';
+import '../../shared/widgets/floating_bob.dart';
+import '../../shared/widgets/pop_in.dart';
+import '../../shared/widgets/pressable_scale.dart';
 
 /// The 7-day daily reward cycle. Mirrors the reward table in
 /// [ProfileController.claimDailyReward].
@@ -54,8 +59,10 @@ class DailyRewardScreen extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.local_fire_department,
-                      color: Colors.white, size: 40),
+                  const FloatingBob(
+                    child: Icon(Icons.local_fire_department,
+                        color: Colors.white, size: 40),
+                  ),
                   const SizedBox(width: 14),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -85,23 +92,30 @@ class DailyRewardScreen extends ConsumerWidget {
                 childAspectRatio: 0.85,
                 children: [
                   for (var i = 0; i < 7; i++)
-                    _DayTile(
-                      day: i + 1,
-                      coins: kDailyRewardCycle[i],
-                      collected: i <= collectedUpTo,
-                      claimable: i == claimableIndex,
-                      big: i == 6,
+                    EntranceFade(
+                      delay: EntranceFade.stagger(i, stepMs: 60),
+                      child: _DayTile(
+                        day: i + 1,
+                        coins: kDailyRewardCycle[i],
+                        collected: i <= collectedUpTo,
+                        claimable: i == claimableIndex,
+                        big: i == 6,
+                      ),
                     ),
                 ],
               ),
             ),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
-                onPressed: claimedToday
-                    ? null
-                    : () => _claim(context, ref, today, yesterday),
-                child: Text(claimedToday ? 'Claimed Today' : 'Claim Reward'),
+              child: PressableScale(
+                enabled: !claimedToday,
+                child: FilledButton(
+                  onPressed: claimedToday
+                      ? null
+                      : () => _claim(context, ref, today, yesterday),
+                  child:
+                      Text(claimedToday ? 'Claimed Today' : 'Claim Reward'),
+                ),
               ),
             ),
           ],
@@ -128,11 +142,23 @@ class DailyRewardScreen extends ConsumerWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.card_giftcard, color: AppTheme.accent, size: 56),
+            const PopIn(
+              duration: Duration(milliseconds: 700),
+              child: Icon(Icons.card_giftcard,
+                  color: AppTheme.accent, size: 56),
+            ),
             const SizedBox(height: 12),
-            Text('+$reward coins!',
-                style: const TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.w900)),
+            TweenAnimationBuilder<int>(
+              tween: IntTween(begin: 0, end: reward),
+              duration: (MediaQuery.maybeOf(context)?.disableAnimations ??
+                      false)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 800),
+              curve: Curves.easeOutCubic,
+              builder: (context, v, _) => Text('+$v coins!',
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.w900)),
+            ),
             const SizedBox(height: 4),
             Text('See you tomorrow for more.',
                 style: TextStyle(color: AppTheme.inkSoft)),
@@ -174,7 +200,7 @@ class _DayTile extends StatelessWidget {
     } else {
       bg = AppTheme.card;
     }
-    return Container(
+    final tile = Container(
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(14),
@@ -182,6 +208,15 @@ class _DayTile extends StatelessWidget {
           color: claimable ? AppTheme.primary : AppTheme.line,
           width: claimable ? 2 : 1,
         ),
+        boxShadow: claimable
+            ? [
+                BoxShadow(
+                  color: AppTheme.primary.withOpacity(0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -191,7 +226,11 @@ class _DayTile extends StatelessWidget {
                   fontSize: 11, color: AppTheme.inkSoft)),
           const SizedBox(height: 6),
           if (collected)
-            const Icon(Icons.check_circle, color: AppTheme.success, size: 26)
+            PopIn(
+              delay: Duration(milliseconds: 300 + day * 60),
+              child: const Icon(Icons.check_circle,
+                  color: AppTheme.success, size: 26),
+            )
           else
             Icon(Icons.monetization_on,
                 color: big ? AppTheme.accent : AppTheme.primary,
@@ -203,5 +242,6 @@ class _DayTile extends StatelessWidget {
         ],
       ),
     );
+    return claimable ? Breathe(scale: 1.05, child: tile) : tile;
   }
 }

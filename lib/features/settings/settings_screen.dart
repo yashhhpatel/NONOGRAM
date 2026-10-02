@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/providers.dart';
 import '../../app/theme.dart';
+import '../../shared/widgets/pressable_scale.dart';
 
 const String _privacyPolicyUrl =
     'https://api.buildprivacypolicy.com/policy/62e76d2f-5b52-4b4f-928b-273e3098f3c1';
@@ -63,29 +64,6 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: 'A gentle daily nudge to keep your streak',
             value: profile.dailyReminderOn,
             onChanged: (v) => _toggleReminder(context, ref, v),
-          ),
-          _section('Appearance'),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(
-                    value: 0,
-                    label: Text('System'),
-                    icon: Icon(Icons.brightness_auto)),
-                ButtonSegment(
-                    value: 1,
-                    label: Text('Light'),
-                    icon: Icon(Icons.light_mode)),
-                ButtonSegment(
-                    value: 2,
-                    label: Text('Dark'),
-                    icon: Icon(Icons.dark_mode)),
-              ],
-              selected: {profile.themeModeIndex},
-              showSelectedIcon: false,
-              onSelectionChanged: (s) => ctrl.setThemeMode(s.first),
-            ),
           ),
           _section('Purchases'),
           _ActionCard(
@@ -305,7 +283,9 @@ class _ToggleCardState extends State<_ToggleCard>
     final on = widget.value;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-      child: InkWell(
+      child: PressableScale(
+        scaleDown: 0.97,
+        child: InkWell(
         onTap: () => widget.onChanged(!on),
         borderRadius: BorderRadius.circular(16),
         child: AnimatedContainer(
@@ -362,6 +342,7 @@ class _ToggleCardState extends State<_ToggleCard>
           ),
         ),
       ),
+      ),
     );
   }
 }
@@ -390,7 +371,9 @@ class _ActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-      child: InkWell(
+      child: PressableScale(
+        scaleDown: 0.97,
+        child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
@@ -432,6 +415,7 @@ class _ActionCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

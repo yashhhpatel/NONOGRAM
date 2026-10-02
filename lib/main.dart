@@ -37,28 +37,14 @@ class NonogramApp extends ConsumerWidget {
     ref.watch(billingServiceProvider);
     final router = ref.watch(routerProvider);
 
-    final modeIndex =
-        ref.watch(profileControllerProvider.select((p) => p.themeModeIndex));
-    final themeMode = switch (modeIndex) {
-      1 => ThemeMode.light,
-      2 => ThemeMode.dark,
-      _ => ThemeMode.system,
-    };
-    // Resolve the effective brightness so AppTheme's neutral getters match the
-    // theme MaterialApp actually renders.
-    final platform = MediaQuery.platformBrightnessOf(context);
-    AppTheme.brightness = switch (themeMode) {
-      ThemeMode.light => Brightness.light,
-      ThemeMode.dark => Brightness.dark,
-      ThemeMode.system => platform,
-    };
+    // Pixel Cross is a light-theme-only app by design.
+    AppTheme.brightness = Brightness.light;
 
     return MaterialApp.router(
       title: 'Pixel Cross',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      themeMode: themeMode,
+      themeMode: ThemeMode.light,
       routerConfig: router,
     );
   }

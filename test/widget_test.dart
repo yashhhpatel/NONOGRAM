@@ -105,13 +105,15 @@ void main() {
         child: const _TestApp(),
       ),
     );
-    await tester.pumpAndSettle();
+    // Onboarding and Home both have continuous ambient animations, so pump
+    // fixed frames rather than pumpAndSettle (which never settles on
+    // repeating animations).
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('Skip'), findsOneWidget);
     await tester.tap(find.text('Skip'));
-    // Home has a continuous ambient animation, so pump fixed frames rather
-    // than pumpAndSettle (which never settles on repeating animations).
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(seconds: 1));
     // Home screen CTA.
     expect(find.text('START PLAYING'), findsOneWidget);
   });
